@@ -1,8 +1,8 @@
 import * as NodeJSHttp from 'http';
-import { http, HttpModule, StartHttpServer } from '../../http-server/src/module';
-import { every, TimerModule } from '../../timers/src/module';
-import { GetCompanies } from '../../http-server/examples/simple-use-case/get-companies';
-import { GetCompaniesHttpRoute } from '../../http-server/examples/simple-use-case/get-companies-http';
+import { http, HttpModule, StartHttpServer } from '@badbury/http-server/src/module';
+import { every, TimerModule } from '@badbury/timers/src/module';
+import { GetCompanies } from '@badbury/http-server/examples/simple-use-case/get-companies';
+import { GetCompaniesHttpRoute } from '@badbury/http-server/examples/simple-use-case/get-companies-http';
 import {
   Container,
   bind,
@@ -13,9 +13,9 @@ import {
   NodeJSLifecycleModule,
   Definition,
   Shutdown,
-} from '../../ioc/src';
-import { GetUsers } from '../../http-server/examples/use-case-with-types/get-users';
-import { GetUsersHttpRoute } from '../../http-server/examples/use-case-with-types/get-users-http';
+} from '@badbury/ioc/src';
+import { GetUsers } from '@badbury/http-server/examples/use-case-with-types/get-users';
+import { GetUsersHttpRoute } from '@badbury/http-server/examples/use-case-with-types/get-users-http';
 // @TODO:
 // - Implement recursive loop checks
 // - Detect incomplete bindings e.g. bind(Foo) should fail if Foo requires params
