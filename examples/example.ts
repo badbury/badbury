@@ -13,7 +13,7 @@ import {
   NodeJSLifecycleModule,
   Definition,
   Shutdown,
-} from '@badbury/ioc/src';
+} from '@badbury/ioc';
 import { GetUsers } from '@badbury/http-server/examples/use-case-with-types/get-users';
 import { GetUsersHttpRoute } from '@badbury/http-server/examples/use-case-with-types/get-users-http';
 // @TODO:
@@ -166,7 +166,7 @@ export class MyModule {
       bind(Foo).with(Bar, lookup(MyConfig).map(this.getUrl), value(1)),
       bind(Box),
       bind(Trigger).with(DynamicEventSink as any, DynamicEventSink),
-      bind(TigHandler).value((tig) => console.log('MY TIG HAS TOG', tig.makeTog())),
+      bind(TigHandler).value((tig) => console.log('MY TIG MADE THE TOG', tig.makeTog())),
       bind(SendHttpRequest).value(
         (url) =>
           new Promise((resolve) => {
