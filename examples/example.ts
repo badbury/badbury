@@ -1,6 +1,7 @@
 import * as NodeJSHttp from 'http';
 import { http, HttpModule, StartHttpServer } from '@badbury/http-server/src/module';
 import { every, TimerModule } from '@badbury/timers/src/module';
+import { config, ConfigModule } from '@badbury/config/src/module';
 import { GetCompanies } from '@badbury/http-server/examples/simple-use-case/get-companies';
 import { GetCompaniesHttpRoute } from '@badbury/http-server/examples/simple-use-case/get-companies-http';
 import {
@@ -107,7 +108,7 @@ class Box {
 
 type TriggerEvents = Bar | Baz;
 interface TriggerEventClassEmitter {
-  dispatchThing(event: TriggerEvents): void;
+  dispatch(event: TriggerEvents): void;
 }
 type TriggerEventFunctionEmitter = (event: TriggerEvents) => void;
 
@@ -118,7 +119,7 @@ class Trigger {
   ) {}
 
   trigger(foo: Foo) {
-    this.emitter.dispatchThing(foo.getBar());
+    this.emitter.dispatch(foo.getBar());
     this.emit(foo.makeBaz());
   }
 }
@@ -145,7 +146,7 @@ abstract class SendHttpRequest {}
 export class MyModule {
   register(): Definition[] {
     return [
-      bind(MyConfig),
+      config(MyConfig),
       bind(Bar),
       bind(MyModule),
       bind(ConfigUrl)
@@ -165,7 +166,7 @@ export class MyModule {
         .factory((bar, config) => new Foo(bar, config.url, 88)),
       bind(Foo).with(Bar, lookup(MyConfig).map(this.getUrl), value(1)),
       bind(Box),
-      bind(Trigger).with(DynamicEventSink as any, DynamicEventSink),
+      bind(Trigger).with(DynamicEventSink, DynamicEventSink),
       bind(TigHandler).value((tig) => console.log('MY TIG MADE THE TOG', tig.makeTog())),
       bind(SendHttpRequest).value(
         (url) =>
@@ -233,6 +234,7 @@ const c = new Container([
   new MyModule(),
   new HttpModule(),
   new TimerModule(),
+  new ConfigModule(),
   new NodeJSLifecycleModule(),
 ]);
 
