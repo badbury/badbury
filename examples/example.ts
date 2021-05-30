@@ -301,7 +301,7 @@ c.emit(new StartHttpServer(8080));
 // class UserModule {
 //   define() {
 //     return [
-//       config(KeycloakConnection).object({
+//       config(KeycloakConnection).schema({
 //         url: define(),
 //       }),
 //       config(ConcurrencyLimit),
