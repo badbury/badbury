@@ -139,9 +139,12 @@ interface TigHandler {
 }
 abstract class TigHandler {}
 interface SendHttpRequest {
-  (url: string | URL): Promise<NodeJSHttp.IncomingMessage>;
+  (url: string | URL): Promise<HttpResponse>;
 }
 abstract class SendHttpRequest {}
+class HttpResponse {
+  constructor(public body: string) {}
+}
 
 export class MyModule {
   register(): Definition[] {
@@ -173,7 +176,7 @@ export class MyModule {
           new Promise((resolve) => {
             const req = NodeJSHttp.request(url, (res) => {
               res.on('data', (d) => {
-                resolve(d.toString('utf8'));
+                resolve(new HttpResponse(d.toString('utf8')));
               });
             });
             req.end();
@@ -210,10 +213,14 @@ export class MyModule {
         .and(100, 'milliseconds')
         .limit(5)
         .use(SendHttpRequest)
-        .do(async (sendHttpRequest) => {
-          console.log(await sendHttpRequest('http://localhost:8080/users?limit=1'));
-          console.log(await sendHttpRequest('http://localhost:8080/companies?limit=1'));
-        }),
+        .do(async function* (sendHttpRequest) {
+          yield sendHttpRequest('http://localhost:8080/users?limit=1');
+          yield sendHttpRequest('http://localhost:8080/companies?limit=1');
+        })
+        .emit(),
+      on(HttpResponse).do(({ body }) => {
+        console.log('Http response', body);
+      }),
       every(10, 'seconds')
         .limit(1)
         .do(() => new Shutdown(0, '10 seconds up'))
