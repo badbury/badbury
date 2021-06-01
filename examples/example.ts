@@ -18,38 +18,55 @@ import {
 import { GetUsers } from '@badbury/http-server/examples/use-case-with-types/get-users';
 import { GetUsersHttpRoute } from '@badbury/http-server/examples/use-case-with-types/get-users-http';
 // @TODO:
-// - Implement recursive loop checks
-// - Detect incomplete bindings e.g. bind(Foo) should fail if Foo requires params
 // - Implement the following features:
 //   - Core
-//     - di bind(X).with(A, B).to(Y) DONE
+//     - di bind(X).to(Y).with(A, B) DONE
 //     - events on(Foo).do(X, 'foo') DONE
 //   - Adapters
 //     - http routing http(GetFoo).do(X, 'foo') DONE
 //     - cli routing command(ServeHttp).do(X, 'foo')
 //     - timers every(5, 'minutes').use(Y).do(X, 'foo') DONE
 //   - Composers
-//     - interceptors bind(X).intercept('foo', Y, Z)
-//     - decorators bind(X).decorate(Y, Z)
-//     - pipeline bind(X).pipeline().pipe(Y, 'foo').pipe(Z, 'bar') (use Proxy)
+//     - interceptors bind(X).intercept('foo', Y, Z).to(A)
+//     - decorators bind(X).decorate(Y, Z).to(A)
+//     - pipeline bind(X).method('baz', (m) => m.pipe(Y, 'foo').pipe(Z, 'bar')).to(A) (use Proxy)
 //     - factories bind(X).use(Foo).factory((foo) => foo.getX()) DONE
-//       - still need to handle methods: factory(Foo, 'getX')
+//       - factories handle methods: factory(Foo, 'getX') DONE
 //     - dispatchers on(X).dispatchWith(Y, 'foo') DONE
 //     - use extra args on(Foo).use(Y).do(X, 'foo') DONE
 //     - emit on(X).do(Y, 'foo').emit() DONE
-//     - fallback bind(X).fallback(value(console.log.bind(console)))
-// - Bind = di | On = events | Http = http | Cli = command | Timer = every
-// - Throw on missing definition
-// - Detect missing dependencies in a module defnition type
-//   - only allow a complete module to be passed to containers
-// - Types of callable
-//   - do((arg) => arg + 1)
-//   - do(Y, 'foo')
-//   - do(MyFunction)
-//     - interface MyFunction { (name: string, age: number): unknown }
-//     - abstract class MyFunction {}
-//     - const myFunction = (name, age, printer) => printer.print(name, age)
-//     - bind(MyFunction).to(myFunction).partial(2, Printer)
+// - Di = bind | Events = on | Http = http | Cli = command | Timer = every
+// Misc todo:
+// - IOC
+//   - Detect incomplete bindings e.g. bind(Foo) should fail if Foo requires params DONE
+//   - Implement recursive loop checks
+//   - Throw on missing definition
+//   - Detect missing dependencies in a module definition type
+//     - only allow a complete module to be passed to containers
+//   - Better primitives for functional style
+//     - partial binding bind(MyFunction).to(myFunction).partial(2, Printer)
+//     - reader style application where the subject function returns a function
+//       that takes the dependencies
+//   - Resolution scopes: non singleton scoped and request scoped
+//   - Aggregate multiple dependencies of the same type
+//   - Resolve all bindings at application start
+//   - Module scoping
+// - Config
+//   - Better/safer schemaless config parsing
+//     - Only allow schemaless config objects when all values are strings, or...
+//     - Use default values to do smart casting number/boolean
+// - Road to V1:
+//   - Jest all the things
+//   - Consistent module structure
+//   - Documentation
+//   - Examples
+//   - README
+//     - Tagline
+//     - Summary
+//     - Installation
+//     - Documentation
+//     - Examples
+//   - Logos, branding and website
 
 // Creational patterns
 // Builder	- use a factory
@@ -150,6 +167,7 @@ export class MyModule {
   register(): Definition[] {
     return [
       config(MyConfig),
+      // bind(MyConfig).value({ url: 'https://localhost:8080' }), // e.g. for testing
       bind(Bar),
       bind(MyModule),
       bind(ConfigUrl)
@@ -238,11 +256,11 @@ export class MyModule {
 }
 
 const c = new Container([
-  new MyModule(),
   new HttpModule(),
   new TimerModule(),
   new ConfigModule(),
   new NodeJSLifecycleModule(),
+  new MyModule(),
 ]);
 
 console.log(c.get(Bar));
@@ -259,15 +277,6 @@ tigHandler(new Tig());
 
 c.emit(new StartHttpServer(8080));
 
-// interface MyFunction {
-//   (name: string, age: number): unknown;
-// }
-// abstract class MyFunction {}
-// const myFunction = (name: string, age: number) => console.log(name, age);
-// bind(MyFunction).to(myFunction);
-// bind(MyFunction).to(myFunction).partial(2, Printer);
-// type ClassOrFunction<T> = T extends Newable<T> ? ClassLike<T> : (...args: unknown[]) => unknown;
-
 // type TypeParams<T extends ClassLike<T>, K> = T extends new (...args: infer ClassParams) => unknown
 //   ? AsConstructors<ClassParams>
 //   : T extends new (...args: infer FnParams) => unknown
@@ -275,34 +284,6 @@ c.emit(new StartHttpServer(8080));
 //     ? AsConstructors<[...TypeParams, ...FnParams]>
 //     : never
 //   : never;
-
-//// Below is post MVP of timers
-// type OneToTen = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
-// type ElevenToTwenty = 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20;
-// type TwentyOneToThirty = 21 | 22 | 23 | 24 | 25 | 26 | 27 | 28 | 29 | 30;
-// type ThirtyOneToForty = 31 | 32 | 33 | 34 | 35 | 36 | 37 | 38 | 39 | 40;
-// type FortyOneToFifty = 41 | 42 | 43 | 44 | 45 | 46 | 47 | 48 | 49 | 50;
-// type FiftyOneToThirty = 51 | 52 | 53 | 54 | 55 | 56 | 57 | 58 | 59 | 60;
-// type DayOfMonth = OneToTen | ElevenToTwenty | TwentyOneToThirty | 31;
-// type HourOfDay = OneToTen | 11 | 12;
-// type MinuteInHour =
-//   | OneToTen
-//   | ElevenToTwenty
-//   | TwentyOneToThirty
-//   | ThirtyOneToForty
-//   | FortyOneToFifty
-//   | FiftyOneToThirty;
-
-// interface TimePointFunction {
-//   (duration: DayOfMonth, type: 'day of the month'): ChainableDuration;
-//   (duration: HourOfDay, type: 'AM' | 'PM'): ChainableDuration;
-//   (duration: MinuteInHour, type: 'past the hour'): ChainableDuration;
-// }
-
-// every('month').at(17, 'day of the month');
-// every('day').at(3, 'AM');
-// every('hour').at(23, 'past the hour');
-// every('month').at(17, 'day of the month').at(3, 'AM').at(23, 'past the hour');
 
 // Vision 28th May
 // class UserModule {
