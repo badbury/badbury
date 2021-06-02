@@ -14,6 +14,7 @@ import {
   NodeJSLifecycleModule,
   Definition,
   Shutdown,
+  FunctionCallable,
 } from '@badbury/ioc';
 import { GetUsers } from '@badbury/http-server/examples/use-case-with-types/get-users';
 import { GetUsersHttpRoute } from '@badbury/http-server/examples/use-case-with-types/get-users-http';
@@ -187,7 +188,25 @@ export class MyModule {
         .factory((bar, config) => new Foo(bar, config.url, 88)),
       bind(Foo).with(Bar, lookup(MyConfig).map(this.getUrl), value(1)),
       bind(Box),
-      bind(Trigger).with(DynamicEventSink, DynamicEventSink),
+      bind(Trigger)
+        .method('trigger', (method) =>
+          method
+            .before((val) => {
+              console.log('About to trigger', val);
+              return val;
+            })
+            .intercept((val, next) => {
+              const time = Date.now();
+              console.log('Measuring the duration of Trigger.trigger...');
+              const val2 = next(val);
+              console.log('Duration of Trigger.trigger was ', Date.now() - time);
+              return val2;
+            })
+            .after(() => {
+              console.log('Triggered Trigger.trigger');
+            }),
+        )
+        .with(DynamicEventSink, DynamicEventSink),
       bind(TigHandler).value((tig) => console.log('MY TIG MADE THE TOG', tig.makeTog())),
       bind(SendHttpRequest).value(
         (url) =>
@@ -276,6 +295,47 @@ const tigHandler = c.get(TigHandler);
 tigHandler(new Tig());
 
 c.emit(new StartHttpServer(8080));
+
+function subject(s: string) {
+  console.log(`Subject is ${s}`);
+  return s + s;
+}
+function addOne(s: string) {
+  return s + 1;
+}
+// const S = callable(subject);
+// const S = (callable(subject) as unknown) as Callable<[string], [], string>; //
+// const B = S.before;
+// const B = S.intercept((str, next) => {
+//   str += '1234';
+//   const k = next(str);
+//   return k + '5678';
+// });
+// console.log(B.call(['Yes'], c, c));
+
+const ff = new FunctionCallable<[string], [], [string]>([], (a: string) => [a], false);
+
+const f = ff
+  .before((a) => a + ' hooo')
+  .after((a) => [...a, ...a])
+  .intercept((a, next) => {
+    console.log('Before', a);
+    const r = next(a);
+    console.log('After', r);
+    return r;
+  })
+  .compile(c, c);
+
+console.log(f('Booo'));
+
+// bind(Bar)
+//   .to(Bar)
+//   .before((a) => '11')
+//   .before((a) => 22)
+//   // .intercept((a) => 22)
+//   .after((a) => 22)
+//   .before((a) => 22)
+//   .before((a) => 22);
 
 // type TypeParams<T extends ClassLike<T>, K> = T extends new (...args: infer ClassParams) => unknown
 //   ? AsConstructors<ClassParams>
