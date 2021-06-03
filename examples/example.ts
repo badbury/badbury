@@ -28,9 +28,9 @@ import { GetUsersHttpRoute } from '@badbury/http-server/examples/use-case-with-t
 //     - cli routing command(ServeHttp).do(X, 'foo')
 //     - timers every(5, 'minutes').use(Y).do(X, 'foo') DONE
 //   - Composers
-//     - interceptors bind(X).intercept('foo', Y, Z).to(A)
+//     - interceptors bind(X).intercept('myMethod', Y, 'foo').to(A) DONE
 //     - decorators bind(X).decorate(Y, Z).to(A)
-//     - pipeline bind(X).method('baz', (m) => m.pipe(Y, 'foo').pipe(Z, 'bar')).to(A) (use Proxy)
+//     - pipeline bind(X).before('myMethod', Y, 'foo').before('myMethod', Z, 'bar').to(A) DONE
 //     - factories bind(X).use(Foo).factory((foo) => foo.getX()) DONE
 //       - factories handle methods: factory(Foo, 'getX') DONE
 //     - dispatchers on(X).dispatchWith(Y, 'foo') DONE
@@ -164,6 +164,16 @@ class HttpResponse {
   constructor(public body: string) {}
 }
 
+class MethodModifyerTest {
+  public doTheThing(name: string) {
+    console.log(name);
+    return {
+      type: 'Person',
+      name,
+    };
+  }
+}
+
 export class MyModule {
   register(): Definition[] {
     return [
@@ -188,25 +198,35 @@ export class MyModule {
         .factory((bar, config) => new Foo(bar, config.url, 88)),
       bind(Foo).with(Bar, lookup(MyConfig).map(this.getUrl), value(1)),
       bind(Box),
-      bind(Trigger)
-        .method('trigger', (method) =>
-          method
-            .before((val) => {
-              console.log('About to trigger', val);
-              return val;
-            })
-            .intercept((val, next) => {
-              const time = Date.now();
-              console.log('Measuring the duration of Trigger.trigger...');
-              const val2 = next(val);
-              console.log('Duration of Trigger.trigger was ', Date.now() - time);
-              return val2;
-            })
-            .after(() => {
-              console.log('Triggered Trigger.trigger');
-            }),
-        )
-        .with(DynamicEventSink, DynamicEventSink),
+      bind(Trigger).with(DynamicEventSink, DynamicEventSink),
+      bind(MethodModifyerTest).method('doTheThing', (method) =>
+        method
+          .before((val) => val + ' Rogers')
+          .teeBefore((val) => console.log('About to trigger', val))
+          .intercept((val, next) => {
+            const time = Date.now();
+            console.log('Measuring the duration of MethodModifyerTest.doTheThing...');
+            const val2 = next(val);
+            console.log('Duration of MethodModifyerTest.doTheThing was ', Date.now() - time);
+            return val2;
+          })
+          .after((res) => ({ ...res, type: 'madman' }))
+          .teeAfter((res) => console.log('Complete MethodModifyerTest.doTheThing for', res.name)),
+      ),
+      // .before('trigger', (val) => {
+      //   console.log('About to trigger', val);
+      //   return val;
+      // })
+      // .intercept('trigger', (val, next) => {
+      //   const time = Date.now();
+      //   console.log('Measuring the duration of Trigger.trigger...');
+      //   const val2 = next(val);
+      //   console.log('Duration of Trigger.trigger was ', Date.now() - time);
+      //   return val2;
+      // })
+      // .after('trigger', () => {
+      //   console.log('Triggered Trigger.trigger');
+      // }),
       bind(TigHandler).value((tig) => console.log('MY TIG MADE THE TOG', tig.makeTog())),
       bind(SendHttpRequest).value(
         (url) =>
@@ -296,46 +316,9 @@ tigHandler(new Tig());
 
 c.emit(new StartHttpServer(8080));
 
-function subject(s: string) {
-  console.log(`Subject is ${s}`);
-  return s + s;
-}
-function addOne(s: string) {
-  return s + 1;
-}
-// const S = callable(subject);
-// const S = (callable(subject) as unknown) as Callable<[string], [], string>; //
-// const B = S.before;
-// const B = S.intercept((str, next) => {
-//   str += '1234';
-//   const k = next(str);
-//   return k + '5678';
-// });
-// console.log(B.call(['Yes'], c, c));
-
-const ff = new FunctionCallable<[string], [], [string]>([], (a: string) => [a], false);
-
-const f = ff
-  .before((a) => a + ' hooo')
-  .after((a) => [...a, ...a])
-  .intercept((a, next) => {
-    console.log('Before', a);
-    const r = next(a);
-    console.log('After', r);
-    return r;
-  })
-  .compile(c, c);
-
-console.log(f('Booo'));
-
-// bind(Bar)
-//   .to(Bar)
-//   .before((a) => '11')
-//   .before((a) => 22)
-//   // .intercept((a) => 22)
-//   .after((a) => 22)
-//   .before((a) => 22)
-//   .before((a) => 22);
+const methodModifyerTest = c.get(MethodModifyerTest);
+const methodModifyerTestResult = methodModifyerTest.doTheThing('Dave');
+console.log(methodModifyerTestResult);
 
 // type TypeParams<T extends ClassLike<T>, K> = T extends new (...args: infer ClassParams) => unknown
 //   ? AsConstructors<ClassParams>
