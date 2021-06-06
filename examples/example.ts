@@ -54,6 +54,9 @@ import { GetUsersHttpRoute } from '@badbury/http-server/examples/use-case-with-t
 //   - Aggregate multiple dependencies of the same type
 //   - Resolve all bindings at application start
 //   - Module scoping
+//   - bind modifiers for regular functions
+//   - Add metadata to callable modifiers
+//   - Modifier container args bind(X).intercept('myMethod', [Foo] as const, (val, foo) => foo.process(val));
 // - Config
 //   - Better/safer schemaless config parsing
 //     - Only allow schemaless config objects when all values are strings, or...
@@ -202,14 +205,16 @@ export class MyModule {
       bind(Box),
       bind(Trigger).with(DynamicEventSink, DynamicEventSink),
       bind(MethodModifyerTest)
-        .before('doTheThing', (val) => {
-          return 'Dr ' + val;
+        .before('doTheThing', (param) => {
+          return 'Dr ' + param;
         })
-        .teeBefore('doTheThing', (val) => console.log('About to trigger', val))
-        .intercept('doTheThing', (val, next) => {
-          console.log('Measuring the duration of MethodModifyerTest.doTheThing...');
-          const val2 = next(val);
-          return val2;
+        .teeBefore('doTheThing', (param) => console.log('About to trigger', param))
+        .intercept('doTheThing', (param, next) => {
+          param = param.split('').reverse().join('').toLowerCase();
+          param = param[0].toUpperCase() + param.slice(1);
+          const result = next(param);
+          result.name += ' Rogers';
+          return result;
         })
         .teeIntercept('doTheThing', (_, next) => {
           const time = Date.now();
@@ -217,8 +222,8 @@ export class MyModule {
           console.log('Duration of MethodModifyerTest.doTheThing was ', Date.now() - time);
         })
         .after('doTheThing', (result) => {
-          result.name += ' Rogers';
           result.type = 'Robot';
+          result.name += ' - Man of mystery';
           return result;
         })
         .teeAfter('doTheThing', (result) => console.log(result)),

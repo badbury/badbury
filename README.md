@@ -1,5 +1,5 @@
 # Badbury
-Badbury is a TypeScript component library and web framework that enables and promotes DDD style without the complexity.
+Badbury is a TypeScript library collection that enables and promotes DDD principles while minimising complexity.
 
 This project is inspired by family of domain focused philosophies:
 
@@ -92,6 +92,9 @@ then you can pick and choose which patterns and abstractions to use as you go.
 - NestJS Components - https://github.com/nestjs
 - TypeStack Components - https://github.com/typestack
 - TypeORM - https://github.com/typeorm/typeorm
+- Pino
+- RxJS
+- Zod
 
 # Development
 
