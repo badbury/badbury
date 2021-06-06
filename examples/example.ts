@@ -14,7 +14,9 @@ import {
   NodeJSLifecycleModule,
   Definition,
   Shutdown,
-  FunctionCallable,
+  LoggerModule,
+  LogInfo,
+  LogWarn,
 } from '@badbury/ioc';
 import { GetUsers } from '@badbury/http-server/examples/use-case-with-types/get-users';
 import { GetUsersHttpRoute } from '@badbury/http-server/examples/use-case-with-types/get-users-http';
@@ -199,34 +201,27 @@ export class MyModule {
       bind(Foo).with(Bar, lookup(MyConfig).map(this.getUrl), value(1)),
       bind(Box),
       bind(Trigger).with(DynamicEventSink, DynamicEventSink),
-      bind(MethodModifyerTest).method('doTheThing', (method) =>
-        method
-          .before((val) => val + ' Rogers')
-          .teeBefore((val) => console.log('About to trigger', val))
-          .intercept((val, next) => {
-            const time = Date.now();
-            console.log('Measuring the duration of MethodModifyerTest.doTheThing...');
-            const val2 = next(val);
-            console.log('Duration of MethodModifyerTest.doTheThing was ', Date.now() - time);
-            return val2;
-          })
-          .after((res) => ({ ...res, type: 'madman' }))
-          .teeAfter((res) => console.log('Complete MethodModifyerTest.doTheThing for', res.name)),
-      ),
-      // .before('trigger', (val) => {
-      //   console.log('About to trigger', val);
-      //   return val;
-      // })
-      // .intercept('trigger', (val, next) => {
-      //   const time = Date.now();
-      //   console.log('Measuring the duration of Trigger.trigger...');
-      //   const val2 = next(val);
-      //   console.log('Duration of Trigger.trigger was ', Date.now() - time);
-      //   return val2;
-      // })
-      // .after('trigger', () => {
-      //   console.log('Triggered Trigger.trigger');
-      // }),
+      bind(MethodModifyerTest)
+        .before('doTheThing', (val) => {
+          return 'Dr ' + val;
+        })
+        .teeBefore('doTheThing', (val) => console.log('About to trigger', val))
+        .intercept('doTheThing', (val, next) => {
+          console.log('Measuring the duration of MethodModifyerTest.doTheThing...');
+          const val2 = next(val);
+          return val2;
+        })
+        .teeIntercept('doTheThing', (_, next) => {
+          const time = Date.now();
+          next();
+          console.log('Duration of MethodModifyerTest.doTheThing was ', Date.now() - time);
+        })
+        .after('doTheThing', (result) => {
+          result.name += ' Rogers';
+          result.type = 'Robot';
+          return result;
+        })
+        .teeAfter('doTheThing', (result) => console.log(result)),
       bind(TigHandler).value((tig) => console.log('MY TIG MADE THE TOG', tig.makeTog())),
       bind(SendHttpRequest).value(
         (url) =>
@@ -260,24 +255,22 @@ export class MyModule {
       bind(GetUsers),
       bind(GetUsersHttpRoute),
       http(GetUsersHttpRoute).do(GetUsers, 'handle'),
+      on(Shutdown).do(LogWarn),
       on(Shutdown).do(async (shutdown) => {
         console.log('Prepping shutdown', shutdown);
         await new Promise((resolve) => setTimeout(resolve, 2000));
-        console.log('Finishing shutdown');
+        console.log('Finishing shutdown', shutdown);
         return 'Foooo';
       }),
       every('second')
         .and(100, 'milliseconds')
-        .limit(5)
         .use(SendHttpRequest)
         .do(async function* (sendHttpRequest) {
           yield sendHttpRequest('http://localhost:8080/users?limit=1');
           yield sendHttpRequest('http://localhost:8080/companies?limit=1');
         })
         .emit(),
-      on(HttpResponse).do(({ body }) => {
-        console.log('Http response', body);
-      }),
+      on(HttpResponse).do(LogInfo),
       every(10, 'seconds')
         .limit(1)
         .do(() => new Shutdown(0, '10 seconds up'))
@@ -295,6 +288,7 @@ export class MyModule {
 }
 
 const c = new Container([
+  new LoggerModule(),
   new HttpModule(),
   new TimerModule(),
   new ConfigModule(),
