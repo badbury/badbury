@@ -102,3 +102,12 @@ then you can pick and choose which patterns and abstractions to use as you go.
 - Consider how http and cli can work without ioc
 - Consider how libraries can build optional badbury ioc integrations
 - Create a blessed/approved libraries list, especially for areas not covered by badbury
+
+## Vision
+
+ioc────────┐
+├───config─┤
+├───timers─┤
+├───http───┤
+└───cli────┤
+           └─platform

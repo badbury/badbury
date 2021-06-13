@@ -20,6 +20,7 @@ import {
 } from '@badbury/ioc';
 import { GetUsers } from '@badbury/http-server/examples/use-case-with-types/get-users';
 import { GetUsersHttpRoute } from '@badbury/http-server/examples/use-case-with-types/get-users-http';
+import { HttpServerConfig } from '@badbury/http-server';
 // @TODO:
 // - Implement the following features:
 //   - Core
@@ -261,12 +262,10 @@ export class MyModule {
       bind(GetUsersHttpRoute),
       http(GetUsersHttpRoute).do(GetUsers, 'handle'),
       on(Shutdown).do(LogWarn),
-      on(Shutdown).do(async (shutdown) => {
-        console.log('Prepping shutdown', shutdown);
+      on(Shutdown).do(async () => {
         await new Promise((resolve) => setTimeout(resolve, 2000));
-        console.log('Finishing shutdown', shutdown);
-        return 'Foooo';
       }),
+      bind(HttpServerConfig).value({ port: 8080 }),
       every('second')
         .and(100, 'milliseconds')
         .use(SendHttpRequest)
@@ -278,7 +277,7 @@ export class MyModule {
       on(HttpResponse).do(LogInfo),
       every(10, 'seconds')
         .limit(1)
-        .do(() => new Shutdown(0, '10 seconds up'))
+        .do(() => new Shutdown('10 seconds up', 0))
         .emit(),
     ];
   }
@@ -300,6 +299,8 @@ const c = new Container([
   new NodeJSLifecycleModule(),
   new MyModule(),
 ]);
+
+c.startup();
 
 console.log(c.get(Bar));
 const foo = c.get(Foo);
