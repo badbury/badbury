@@ -44,7 +44,7 @@ import { HttpServerConfig } from '@badbury/http-server';
 // - IOC
 //   - Detect incomplete bindings e.g. bind(Foo) should fail if Foo requires params DONE
 //   - Implement recursive loop checks
-//   - Throw on missing definition
+//   - Throw on missing definition DONE
 //   - Detect missing dependencies in a module definition type
 //     - only allow a complete module to be passed to containers
 //   - Better primitives for functional style
