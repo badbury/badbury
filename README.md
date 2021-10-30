@@ -105,9 +105,14 @@ then you can pick and choose which patterns and abstractions to use as you go.
 
 ## Vision
 
-ioc────────┐
-├───config─┤
-├───timers─┤
-├───http───┤
-└───cli────┤
-           └─platform
+│ /** Foundation layer **/
+├─ioc──┐ // <-- No dependencies
+└─data─┤ // <-- Ajv and maybe Typebox
+       │ /** App layer **/
+       ├─config──────┐ // <-- Using something + @badbury/data
+       ├─http-server─┤ // <-- Using koa as a base + @badbury/data
+       ├─cli─────────┤ // <-- Using minimist as a base + @badbury/data
+       ├─http-client─┤ // <-- Using axios as a base + @badbury/data
+       └─timers──────┤ // <-- Using setTimeout/setInterval as a base
+                     │ /** Project layer **/
+                     └─platform
