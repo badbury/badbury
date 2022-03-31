@@ -1,5 +1,11 @@
 import * as NodeJSHttp from 'http';
-import { http, HttpModule, StartHttpServer } from '@badbury/http-server/src/module';
+import {
+  http,
+  HttpModule,
+  StartHttpServer,
+  HttpServerStarted,
+  HttpServerStopped,
+} from '@badbury/http-server/src/module';
 import { every, TimerModule } from '@badbury/timers/src/module';
 import { config, ConfigModule } from '@badbury/config/src/module';
 import { GetCompanies } from '@badbury/http-server/examples/simple-use-case/get-companies';
@@ -16,7 +22,9 @@ import {
   Shutdown,
   LoggerModule,
   LogInfo,
-  LogWarn,
+  Startup,
+  Ready,
+  Exit,
 } from '@badbury/ioc';
 import { GetUsers } from '@badbury/http-server/examples/use-case-with-types/get-users';
 import { GetUsersHttpRoute } from '@badbury/http-server/examples/use-case-with-types/get-users-http';
@@ -52,11 +60,14 @@ import { HttpServerConfig } from '@badbury/http-server';
 //     - reader style application where the subject function returns a function
 //       that takes the dependencies
 //   - Resolution scopes: non singleton scoped and request scoped
-//   - Aggregate multiple dependencies of the same type
+//   - Aggregate multiple dependencies of the same type:
+//     - class Tokens extends Array<number> {}
+//     - bind(Tokens).add(BraceToken)
+//     - bind(BraceToken).tag(Tokens)
 //   - Resolve all bindings at application start
 //   - Module scoping
 //   - bind modifiers for regular functions
-//   - Add metadata to callable modifiers
+//   - Add metadata to callable modifiers (method name, class, instance)
 //   - Modifier container args bind(X).intercept('myMethod', [Foo] as const, (val, foo) => foo.process(val));
 // - Config
 //   - Better/safer schemaless config parsing
@@ -84,12 +95,12 @@ import { HttpServerConfig } from '@badbury/http-server';
 // Singleton	- bind creates a singleton
 
 // Structural patterns
-// Decorator - decorate
+// Decorator - intercept
 // Extension - ???
 // Facade - ???
 // Front controller - http/command/every
 // Module - Module
-// Proxy	- ???
+// Proxy	- intercept
 // Chain of responsibility	- pipeline & pipe bind(X).pipe(Y, 'method').pipe(Z, 'other')
 // Command - on/use/do
 // Observer - on/do
@@ -180,6 +191,49 @@ class MethodModifyerTest {
   }
 }
 
+// type Provider<T> =
+//   | { provide: T; fromBundle: Bundle }
+//   | { provide: T; useFactory: () => Promise<T> | T; inject: unknown[] }
+//   | { provide: T; useClass: new (...args: any[]) => T }
+//   | { provide: T; useValue: T };
+
+// type BundleOptions = { autoStart?: boolean; offer?: Provider<unknown>[] };
+
+// abstract class Bundle {
+//   public readonly autoStart: boolean = true;
+//   public readonly exposeAll: boolean = false;
+//   public readonly useAllOffers: boolean = true;
+//   protected readonly container: Container;
+
+//   constructor(options: BundleOptions = {}, parent: Container = new Container([])) {
+//     this.container = parent.registerBundle({
+//       autoStart: this.autoStart,
+//       exposeAll: this.exposeAll,
+//       useAllOffers: this.useAllOffers,
+//       ...options,
+//       class: this.constructor,
+//       definitions: this.register(),
+//     });
+//   }
+
+//   abstract register(): Definition[];
+// }
+
+// class MyBundle extends Bundle {
+//   register(): Definition[] {
+//     return [bind(Tig).require()];
+//   }
+
+//   getTog(): Tog {
+//     return this.container.get(Tig).makeTog();
+//   }
+// }
+
+// const moduleOne = new MyBundle({ offer: [{ provide: Tig, fromBundle: FooModule }] });
+// moduleOne.getTog();
+
+// export class App extends Bundle {
+
 export class MyModule {
   register(): Definition[] {
     return [
@@ -187,6 +241,14 @@ export class MyModule {
       // bind(MyConfig).value({ url: 'https://localhost:8080' }), // e.g. for testing
       bind(Bar),
       bind(MyModule),
+      // // Requires
+      // bind(Bar).required(),
+      // // Includes
+      // include(BarBundle).offer(Foo66, Foo).exposeAll().offerAll(),
+      // bind(Bar).from(BarBundle),
+      // bind(Foo66).from(BarBundle, Foo).expose(),
+      // // Expose
+      // bind(Foo).expose(),
       bind(ConfigUrl)
         .use(MyConfig)
         .factory((config) => config.url),
@@ -243,7 +305,6 @@ export class MyModule {
       on(Foo).do(Trigger, 'trigger'),
       on(Bar).do((bar) => console.log('Arrow Bar...', bar)),
       on(Baz).do(Box, 'process'),
-      on(Baz).use(Foo, Bar).do(MyModule, 'handleBaz'),
       on(Baz).use(Foo88, Bar).do(this.handleBaz),
       on(Baz)
         .use(Foo88)
@@ -261,7 +322,6 @@ export class MyModule {
       bind(GetUsers),
       bind(GetUsersHttpRoute),
       http(GetUsersHttpRoute).do(GetUsers, 'handle'),
-      on(Shutdown).do(LogWarn),
       on(Shutdown).do(async () => {
         await new Promise((resolve) => setTimeout(resolve, 2000));
       }),
@@ -275,6 +335,12 @@ export class MyModule {
         })
         .emit(),
       on(HttpResponse).do(LogInfo),
+      on(Startup).do(LogInfo),
+      on(Ready).do(LogInfo),
+      on(HttpServerStarted).do(LogInfo),
+      on(HttpServerStopped).do(LogInfo),
+      on(Shutdown).do(LogInfo),
+      on(Exit).do(LogInfo),
       every(10, 'seconds')
         .limit(1)
         .do(() => new Shutdown('10 seconds up', 0))
@@ -314,11 +380,58 @@ c.emit(new Tig());
 const tigHandler = c.get(TigHandler);
 tigHandler(new Tig());
 
-c.emit(new StartHttpServer(8080));
+c.emit(new StartHttpServer());
 
 const methodModifyerTest = c.get(MethodModifyerTest);
 const methodModifyerTestResult = methodModifyerTest.doTheThing('Dave');
 console.log(methodModifyerTestResult);
+
+// MODULES START
+
+// class Infrastructure extends Bundle {
+//   register() {
+//     return [
+//       include(LoggerModule).exportAll(),
+//       include(HttpModule).exportAll(),
+//       include(TimerModule).exportAll(),
+//       include(ConfigModule).exportAll(),
+//       include(NodeJSLifecycleModule).exportAll(),
+//     ];
+//   }
+// }
+
+// class Bootstrap extends Bundle {
+//   register() {
+//     return [
+//       include(Infrastructure),
+//       include(App).offerFrom(Infrastructure),
+//       on(Ready)
+//         .use(Bar, Foo, Foo99, TigHandler, MethodModifyerTest)
+//         .do(async function* (_, bar, foo, foo99, tigHandler, methodModifyerTest) {
+//           console.log(bar);
+//           console.log(foo99);
+//           console.log(foo);
+//           yield foo99;
+
+//           yield new Tig();
+
+//           tigHandler(new Tig());
+
+//           yield new StartHttpServer();
+
+//           const methodModifyerTestResult = methodModifyerTest.doTheThing('Dave');
+//           console.log(methodModifyerTestResult);
+//         })
+//         .emit(),
+//     ];
+//   }
+// }
+
+// if (require.main) {
+//   new Bootstrap().startup();
+// }
+
+// MODULES END
 
 // type TypeParams<T extends ClassLike<T>, K> = T extends new (...args: infer ClassParams) => unknown
 //   ? AsConstructors<ClassParams>
@@ -359,6 +472,27 @@ console.log(methodModifyerTestResult);
 //       http(GetUsersHttp).do(GetUsers),
 //       every(SevenSeconds).do(FlushUsers),
 //       on(UserCreated).do(SlackNotify),
+//     ];
+//   }
+// }
+
+// Vision 31st Oct
+// Refine and make simple:
+// - http controllers should be more regular so no .do mapping
+// - config should be infered as much as possible but still be type safe
+
+// Idea 8 Nov
+
+// class UserModule {
+//   define() {
+//     return [
+//       http('GET', '/foo')
+//         .body(MyBodySchema)
+//         .headers(MyHeadersSchema)
+//         .query(MyQuerySchema)
+//         .handle(MyHandler, 'handle')
+//         .response(200, HappyResponseSchema)
+//         .response(404, SadResponseSchema)
 //     ];
 //   }
 // }
