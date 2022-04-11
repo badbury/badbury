@@ -31,10 +31,11 @@
     "typescript": "^4.0.2"
   },
   "dependencies": {
+    "@badbury/config": "^1.0.0",
+    "@badbury/data": "workspace:^1.0.0",
+    "@badbury/http-server": "^1.0.0",
     "@badbury/ioc": "^1.0.0",
     "@badbury/timers": "^1.0.0",
-    "@badbury/http-server": "^1.0.0",
-    "@badbury/config": "^1.0.0",
     "reflect-metadata": "^0.1.13"
   }
 }

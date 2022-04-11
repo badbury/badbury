@@ -25,10 +25,12 @@ import {
   Startup,
   Ready,
   Exit,
+  event,
 } from '@badbury/ioc';
 import { GetUsers } from '@badbury/http-server/examples/use-case-with-types/get-users';
 import { GetUsersHttpRoute } from '@badbury/http-server/examples/use-case-with-types/get-users-http';
 import { HttpServerConfig } from '@badbury/http-server';
+import { Data } from '@badbury/data';
 // @TODO:
 // - Implement the following features:
 //   - Core
@@ -191,6 +193,20 @@ class MethodModifyerTest {
   }
 }
 
+class FooEvent extends Data.object({
+  bar: Data.string(),
+}) {}
+
+class SingleEventTest {
+  private fooEvent = event(FooEvent);
+
+  onFooEvent = this.fooEvent.on;
+
+  testEventStuff(name: string) {
+    this.fooEvent({ bar: name });
+  }
+}
+
 // type Provider<T> =
 //   | { provide: T; fromBundle: Bundle }
 //   | { provide: T; useFactory: () => Promise<T> | T; inject: unknown[] }
@@ -302,6 +318,7 @@ export class MyModule {
             req.end();
           }),
       ),
+      bind(SingleEventTest),
       on(Foo).do(Trigger, 'trigger'),
       on(Bar).do((bar) => console.log('Arrow Bar...', bar)),
       on(Baz).do(Box, 'process'),
