@@ -26,6 +26,7 @@ import {
   Ready,
   Exit,
   event,
+  events,
 } from '@badbury/ioc';
 import { GetUsers } from '@badbury/http-server/examples/use-case-with-types/get-users';
 import { GetUsersHttpRoute } from '@badbury/http-server/examples/use-case-with-types/get-users-http';
@@ -193,17 +194,32 @@ class MethodModifyerTest {
   }
 }
 
+class BarEvent extends Data.object({
+  foo: Data.number(),
+}) {}
+
 class FooEvent extends Data.object({
   bar: Data.string(),
 }) {}
 
-class SingleEventTest {
-  private fooEvent = event(FooEvent);
+class BazEvent extends Data.object({
+  baz: Data.boolean(),
+}) {}
 
-  onFooEvent = this.fooEvent.on;
+class SingleEventTest {
+  floop = '12345';
+
+  bazEvent = event(BazEvent);
+
+  events = events({
+    barEvent: BarEvent,
+    fooEvent: FooEvent,
+  });
 
   testEventStuff(name: string) {
-    this.fooEvent({ bar: name });
+    this.bazEvent({ baz: true });
+    this.events.barEvent({ foo: name.length });
+    this.events.fooEvent({ bar: name });
   }
 }
 
@@ -318,7 +334,10 @@ export class MyModule {
             req.end();
           }),
       ),
-      bind(SingleEventTest),
+      bind(SingleEventTest).listenTo('events', 'bazEvent'),
+      on(BarEvent).do((bar) => console.log('All hail the BAR!', bar)),
+      on(FooEvent).do((foo) => console.log('All hail the FOO!', foo)),
+      on(BazEvent).do((baz) => console.log('All hail the BAZ!', baz)),
       on(Foo).do(Trigger, 'trigger'),
       on(Bar).do((bar) => console.log('Arrow Bar...', bar)),
       on(Baz).do(Box, 'process'),
@@ -402,6 +421,7 @@ c.emit(new StartHttpServer());
 const methodModifyerTest = c.get(MethodModifyerTest);
 const methodModifyerTestResult = methodModifyerTest.doTheThing('Dave');
 console.log(methodModifyerTestResult);
+c.get(SingleEventTest).testEventStuff('schadoosh');
 
 // MODULES START
 
