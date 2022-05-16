@@ -16,7 +16,8 @@ import {
   lookup,
   on,
   value,
-  DynamicEventSink,
+  EventSink,
+  EmitEvent,
   NodeJSLifecycleModule,
   Definition,
   Shutdown,
@@ -27,6 +28,7 @@ import {
   Exit,
   event,
   events,
+  Logger,
 } from '@badbury/ioc';
 import { GetUsers } from '@badbury/http-server/examples/use-case-with-types/get-users';
 import { GetUsersHttpRoute } from '@badbury/http-server/examples/use-case-with-types/get-users-http';
@@ -53,29 +55,29 @@ import { Data } from '@badbury/data';
 // - Di = bind | Events = on | Http = http | Cli = command | Timer = every
 // Misc todo:
 // - IOC
-//   - Detect incomplete bindings e.g. bind(Foo) should fail if Foo requires params DONE
-//   - Implement recursive loop checks
-//   - Throw on missing definition DONE
-//   - Detect missing dependencies in a module definition type
-//     - only allow a complete module to be passed to containers
+//   - Definition completeness
+//     - Detect incomplete bindings e.g. bind(Foo) should fail if Foo requires params DONE
+//     - Implement recursive loop checks
+//     - Throw on missing definition DONE
+//     - Detect missing dependencies in a module definition type & only allow a complete module to be passed to containers
 //   - Better primitives for functional style
-//     - partial binding bind(MyFunction).to(myFunction).partial(2, Printer)
+//     - partial binding for functions bind(MyFunction).to(myFunction).partial(2, Printer)
+//     - partial binding for methods bind(MyInterface).to(MyClass).partialMethod('myMethod', 2, Printer)
+//     - bind to methods bind(MyFunction).to(MyClass, 'myMethod')
+//     - interceptors for functions bind(MyFunction).to(myFunction).intercept(myIntercepter)
 //     - reader style application where the subject function returns a function
 //       that takes the dependencies
 //   - Resolution scopes: non singleton scoped and request scoped
 //   - Aggregate multiple dependencies of the same type:
 //     - class Tokens extends Array<number> {}
-//     - bind(Tokens).add(BraceToken)
-//     - bind(BraceToken).tag(Tokens)
+//     - bind(Tokens).add(BraceTokenOne, BraceTokenTwo).add(BraceTokenThree)
 //   - Resolve all bindings at application start
 //   - Module scoping
-//   - bind modifiers for regular functions
 //   - Add metadata to callable modifiers (method name, class, instance)
+//   - Consider a more generic signature for intercepters, e.g. context with args as a property
 //   - Modifier container args bind(X).intercept('myMethod', [Foo] as const, (val, foo) => foo.process(val));
 // - Config
-//   - Better/safer schemaless config parsing
-//     - Only allow schemaless config objects when all values are strings, or...
-//     - Use default values to do smart casting number/boolean
+//   - Rewrite using @badbury/data
 // - Road to V1:
 //   - Jest all the things
 //   - Consistent module structure
@@ -106,7 +108,7 @@ import { Data } from '@badbury/data';
 // Proxy	- intercept
 // Chain of responsibility	- pipeline & pipe bind(X).pipe(Y, 'method').pipe(Z, 'other')
 // Command - on/use/do
-// Observer - on/do
+// Observer - on/do/event/events
 
 class MyConfig {
   url = 'https://example.org';
@@ -136,17 +138,19 @@ class Baz {
 }
 
 class Box {
+  constructor(public log: (subject: string, object?: Baz) => void) {}
+
   badMethod(str: string) {
-    console.log(str);
+    this.log(str);
   }
   process(baz: Baz) {
-    console.log('Box class processing........', baz);
+    this.log('Box class processing........', baz);
   }
 }
 
 type TriggerEvents = Bar | Baz;
 interface TriggerEventClassEmitter {
-  dispatch(event: TriggerEvents): void;
+  emit(event: TriggerEvents): void;
 }
 type TriggerEventFunctionEmitter = (event: TriggerEvents) => void;
 
@@ -157,7 +161,7 @@ class Trigger {
   ) {}
 
   trigger(foo: Foo) {
-    this.emitter.dispatch(foo.getBar());
+    this.emitter.emit(foo.getBar());
     this.emit(foo.makeBaz());
   }
 }
@@ -185,8 +189,10 @@ class HttpResponse {
 }
 
 class MethodModifyerTest {
+  constructor(public log: (subject: string) => void) {}
+
   public doTheThing(name: string) {
-    console.log(name);
+    this.log(name);
     return {
       type: 'Person',
       name,
@@ -297,9 +303,10 @@ export class MyModule {
         .use(Bar, MyConfig)
         .factory((bar, config) => new Foo(bar, config.url, 88)),
       bind(Foo).with(Bar, lookup(MyConfig).map(this.getUrl), value(1)),
-      bind(Box),
-      bind(Trigger).with(DynamicEventSink, DynamicEventSink),
+      bind(Box).with(LogInfo),
+      bind(Trigger).with(EventSink, EmitEvent),
       bind(MethodModifyerTest)
+        .with(LogInfo)
         .before('doTheThing', (param) => {
           return 'Dr ' + param;
         })
@@ -335,20 +342,30 @@ export class MyModule {
           }),
       ),
       bind(SingleEventTest).listenTo('events', 'bazEvent'),
-      on(BarEvent).do((bar) => console.log('All hail the BAR!', bar)),
-      on(FooEvent).do((foo) => console.log('All hail the FOO!', foo)),
-      on(BazEvent).do((baz) => console.log('All hail the BAZ!', baz)),
+      on(BarEvent)
+        .use(LogInfo)
+        .do((bar, log) => log('All hail the BAR!', bar)),
+      on(FooEvent)
+        .use(LogInfo)
+        .do((foo, log) => log('All hail the FOO!', foo)),
+      on(BazEvent)
+        .use(LogInfo)
+        .do((baz, log) => log('All hail the BAZ!', baz)),
       on(Foo).do(Trigger, 'trigger'),
-      on(Bar).do((bar) => console.log('Arrow Bar...', bar)),
+      on(Bar)
+        .use(LogInfo)
+        .do((bar, log) => log('Arrow Bar...', bar)),
       on(Baz).do(Box, 'process'),
       on(Baz).use(Foo88, Bar).do(this.handleBaz),
       on(Baz)
-        .use(Foo88)
-        .do((baz, foo) => console.log('Arrow Baz...', baz, foo.getBar())),
+        .use(Foo88, Logger)
+        .do((baz, foo, logger) => logger.info(['Arrow Baz...', baz, foo.getBar()])),
       on(Tig)
         .do((tig) => tig.makeTog())
         .emit(),
-      on(Tog).do((tog) => console.log('I got the tog!', tog)),
+      on(Tog)
+        .use(LogInfo)
+        .do((tog, log) => log('I got the tog!', tog)),
       on(Tig).do(TigHandler),
       bind(GetCompanies),
       bind(GetCompaniesHttpRoute),
@@ -404,11 +421,12 @@ const c = new Container([
 
 c.startup();
 
-console.log(c.get(Bar));
+const logger = c.get(Logger);
+logger.info(c.get(Bar));
 const foo = c.get(Foo);
 const foo99 = c.get(Foo99);
-console.log(foo99);
-console.log(foo);
+logger.info(foo99);
+logger.info(foo);
 c.emit(foo99);
 
 c.emit(new Tig());
