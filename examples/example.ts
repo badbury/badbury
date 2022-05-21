@@ -200,15 +200,15 @@ class MethodModifyerTest {
   }
 }
 
-class BarEvent extends Data.object({
+class BarEvent extends Data.record({
   foo: Data.number(),
 }) {}
 
-class FooEvent extends Data.object({
+class FooEvent extends Data.record({
   bar: Data.string(),
 }) {}
 
-class BazEvent extends Data.object({
+class BazEvent extends Data.record({
   baz: Data.boolean(),
 }) {}
 
