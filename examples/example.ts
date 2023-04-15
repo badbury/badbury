@@ -11,7 +11,6 @@ import { config, ConfigModule } from '@badbury/config/src/module';
 import { GetCompanies } from '@badbury/http-server/examples/simple-use-case/get-companies';
 import { GetCompaniesHttpRoute } from '@badbury/http-server/examples/simple-use-case/get-companies-http';
 import {
-  Container,
   bind,
   lookup,
   on,
@@ -29,6 +28,8 @@ import {
   event,
   events,
   Logger,
+  container,
+  bundle,
 } from '@badbury/ioc';
 import { GetUsers } from '@badbury/http-server/examples/use-case-with-types/get-users';
 import { GetUsersHttpRoute } from '@badbury/http-server/examples/use-case-with-types/get-users-http';
@@ -330,17 +331,6 @@ export class MyModule {
         })
         .teeAfter('doTheThing', (result) => console.log(result)),
       bind(TigHandler).value((tig) => console.log('MY TIG MADE THE TOG', tig.makeTog())),
-      bind(SendHttpRequest).value(
-        (url) =>
-          new Promise((resolve) => {
-            const req = NodeJSHttp.request(url, (res) => {
-              res.on('data', (d) => {
-                resolve(new HttpResponse(d.toString('utf8')));
-              });
-            });
-            req.end();
-          }),
-      ),
       bind(SingleEventTest).listenTo('events', 'bazEvent'),
       on(BarEvent)
         .use(LogInfo)
@@ -379,21 +369,6 @@ export class MyModule {
         await new Promise((resolve) => setTimeout(resolve, 2000));
       }),
       bind(HttpServerConfig).value({ port: 8080 }),
-      every('second')
-        .and(100, 'milliseconds')
-        .use(SendHttpRequest)
-        .do(async function* (sendHttpRequest) {
-          yield sendHttpRequest('http://localhost:8080/users?limit=1');
-          yield sendHttpRequest('http://localhost:8080/companies?limit=1');
-        })
-        .emit(),
-      on(HttpResponse).do(LogInfo),
-      on(Startup).do(LogInfo),
-      on(Ready).do(LogInfo),
-      on(HttpServerStarted).do(LogInfo),
-      on(HttpServerStopped).do(LogInfo),
-      on(Shutdown).do(LogInfo),
-      on(Exit).do(LogInfo),
       every(10, 'seconds')
         .limit(1)
         .do(() => new Shutdown('10 seconds up', 0))
@@ -410,36 +385,72 @@ export class MyModule {
   }
 }
 
-const c = new Container([
-  new LoggerModule(),
-  new HttpModule(),
-  new TimerModule(),
-  new ConfigModule(),
-  new NodeJSLifecycleModule(),
-  new MyModule(),
-]);
+export const OtherBundle = bundle(
+  bind(SendHttpRequest).value(
+    (url) =>
+      new Promise((resolve) => {
+        const req = NodeJSHttp.request(url, (res) => {
+          res.on('data', (d) => {
+            resolve(new HttpResponse(d.toString('utf8')));
+          });
+        });
+        req.end();
+      }),
+  ),
+  every('second')
+    .and(100, 'milliseconds')
+    .use(SendHttpRequest)
+    .do(async function* (sendHttpRequest) {
+      yield sendHttpRequest('http://localhost:8080/users?limit=1');
+      yield sendHttpRequest('http://localhost:8080/companies?limit=1');
+    })
+    .emit(),
+  on(HttpResponse).do(LogInfo),
+  on(Startup).do(LogInfo),
+  on(Ready).do(LogInfo),
+  on(HttpServerStarted).do(LogInfo),
+  on(HttpServerStopped).do(LogInfo),
+  on(Shutdown).do(LogInfo),
+  on(Exit).do(LogInfo),
+);
 
-c.startup();
+(function () {
+  // const app = new Container([
+  const app = container(
+    new LoggerModule(),
+    new HttpModule(),
+    new TimerModule(),
+    new ConfigModule(),
+    new NodeJSLifecycleModule(),
+    new MyModule(),
+    OtherBundle,
+  );
+  // ]);
 
-const logger = c.get(Logger);
-logger.info(c.get(Bar));
-const foo = c.get(Foo);
-const foo99 = c.get(Foo99);
-logger.info(foo99);
-logger.info(foo);
-c.emit(foo99);
+  console.log('Starting app...');
+  app.startup();
+  console.log('App started');
 
-c.emit(new Tig());
+  const logger = app.get(Logger);
+  logger.info(app.get(Bar));
+  const foo = app.get(Foo);
+  const foo99 = app.get(Foo99);
+  logger.info(foo99);
+  logger.info(foo);
+  app.emit(foo99);
 
-const tigHandler = c.get(TigHandler);
-tigHandler(new Tig());
+  app.emit(new Tig());
 
-c.emit(new StartHttpServer());
+  const tigHandler = app.get(TigHandler);
+  tigHandler(new Tig());
 
-const methodModifyerTest = c.get(MethodModifyerTest);
-const methodModifyerTestResult = methodModifyerTest.doTheThing('Dave');
-console.log(methodModifyerTestResult);
-c.get(SingleEventTest).testEventStuff('schadoosh');
+  app.emit(new StartHttpServer());
+
+  const methodModifyerTest = app.get(MethodModifyerTest);
+  const methodModifyerTestResult = methodModifyerTest.doTheThing('Dave');
+  console.log(methodModifyerTestResult);
+  app.get(SingleEventTest).testEventStuff('schadoosh');
+})();
 
 // MODULES START
 

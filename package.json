@@ -8,6 +8,7 @@
     "types": "./dist/index.d.ts"
   },
   "scripts": {
+    "example": "ts-node examples/example.ts",
     "build": "tsc",
     "test": "jest",
     "prettier": "prettier '*/**/*.ts'",
@@ -28,6 +29,7 @@
     "jest": "^26.4.2",
     "prettier": "2.2.1",
     "ts-jest": "^26.3.0",
+    "ts-node": "^10.9.1",
     "typescript": "^4.0.2"
   },
   "dependencies": {
