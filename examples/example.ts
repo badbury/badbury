@@ -11,7 +11,6 @@ import { config, ConfigModule } from '@badbury/config/src/module';
 import { GetCompanies } from '@badbury/http-server/examples/simple-use-case/get-companies';
 import { GetCompaniesHttpRoute } from '@badbury/http-server/examples/simple-use-case/get-companies-http';
 import {
-  Container,
   bind,
   lookup,
   on,
@@ -29,6 +28,10 @@ import {
   event,
   events,
   Logger,
+  Module,
+  module,
+  include,
+  global,
 } from '@badbury/ioc';
 import { GetUsers } from '@badbury/http-server/examples/use-case-with-types/get-users';
 import { GetUsersHttpRoute } from '@badbury/http-server/examples/use-case-with-types/get-users-http';
@@ -229,34 +232,6 @@ class SingleEventTest {
   }
 }
 
-// type Provider<T> =
-//   | { provide: T; fromBundle: Bundle }
-//   | { provide: T; useFactory: () => Promise<T> | T; inject: unknown[] }
-//   | { provide: T; useClass: new (...args: any[]) => T }
-//   | { provide: T; useValue: T };
-
-// type BundleOptions = { autoStart?: boolean; offer?: Provider<unknown>[] };
-
-// abstract class Bundle {
-//   public readonly autoStart: boolean = true;
-//   public readonly exposeAll: boolean = false;
-//   public readonly useAllOffers: boolean = true;
-//   protected readonly container: Container;
-
-//   constructor(options: BundleOptions = {}, parent: Container = new Container([])) {
-//     this.container = parent.registerBundle({
-//       autoStart: this.autoStart,
-//       exposeAll: this.exposeAll,
-//       useAllOffers: this.useAllOffers,
-//       ...options,
-//       class: this.constructor,
-//       definitions: this.register(),
-//     });
-//   }
-
-//   abstract register(): Definition[];
-// }
-
 // class MyBundle extends Bundle {
 //   register(): Definition[] {
 //     return [bind(Tig).require()];
@@ -272,11 +247,11 @@ class SingleEventTest {
 
 // export class App extends Bundle {
 
-export class MyModule {
+export class MyModule extends Module {
   register(): Definition[] {
     return [
-      config(MyConfig),
-      // bind(MyConfig).value({ url: 'https://localhost:8080' }), // e.g. for testing
+      // config(MyConfig),
+      bind(MyConfig).value({ url: 'https://localhost:8080' }), // e.g. for testing
       bind(Bar),
       bind(MyModule),
       // // Requires
@@ -410,36 +385,51 @@ export class MyModule {
   }
 }
 
-const c = new Container([
-  new LoggerModule(),
-  new HttpModule(),
-  new TimerModule(),
-  new ConfigModule(),
-  new NodeJSLifecycleModule(),
-  new MyModule(),
-]);
+const AppOne = module(
+  global(LoggerModule),
+  include(HttpModule),
+  include(TimerModule),
+  include(ConfigModule),
+  include(NodeJSLifecycleModule),
+  include(MyModule),
+);
 
-c.startup();
+class AppTwo extends Module {
+  register(): Definition[] {
+    return [
+      global(LoggerModule),
+      include(HttpModule),
+      include(TimerModule),
+      include(ConfigModule),
+      include(NodeJSLifecycleModule),
+      include(MyModule),
+    ];
+  }
+}
 
-const logger = c.get(Logger);
-logger.info(c.get(Bar));
-const foo = c.get(Foo);
-const foo99 = c.get(Foo99);
+const app = new AppOne();
+
+app.startup();
+
+const logger = app.get(Logger);
+logger.info(app.get(Bar));
+const foo = app.get(Foo);
+const foo99 = app.get(Foo99);
 logger.info(foo99);
 logger.info(foo);
-c.emit(foo99);
+app.emit(foo99);
 
-c.emit(new Tig());
+app.emit(new Tig());
 
-const tigHandler = c.get(TigHandler);
+const tigHandler = app.get(TigHandler);
 tigHandler(new Tig());
 
-c.emit(new StartHttpServer());
+app.emit(new StartHttpServer());
 
-const methodModifyerTest = c.get(MethodModifyerTest);
+const methodModifyerTest = app.get(MethodModifyerTest);
 const methodModifyerTestResult = methodModifyerTest.doTheThing('Dave');
 console.log(methodModifyerTestResult);
-c.get(SingleEventTest).testEventStuff('schadoosh');
+app.get(SingleEventTest).testEventStuff('schadoosh');
 
 // MODULES START
 
