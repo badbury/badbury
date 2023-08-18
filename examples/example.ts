@@ -1,40 +1,40 @@
-import * as NodeJSHttp from 'http';
-import {
-  http,
-  HttpModule,
-  StartHttpServer,
-  HttpServerStarted,
-  HttpServerStopped,
-} from '@badbury/http-server/src/module';
-import { every, TimerModule } from '@badbury/timers/src/module';
-import { config, ConfigModule } from '@badbury/config/src/module';
-import { GetCompanies } from '@badbury/http-server/examples/simple-use-case/get-companies';
-import { GetCompaniesHttpRoute } from '@badbury/http-server/examples/simple-use-case/get-companies-http';
+// import * as NodeJSHttp from "http";
+// import {
+//   http,
+//   HttpModule,
+//   HttpServerStarted,
+//   HttpServerStopped,
+//   StartHttpServer,
+// } from "@badbury/http-server/src/module";
+// import { every, TimerModule } from "@badbury/timers/src/module";
+// import { config, ConfigModule } from "@badbury/config/src/module";
+// import { GetCompanies } from "@badbury/http-server/examples/simple-use-case/get-companies";
+// import { GetCompaniesHttpRoute } from "@badbury/http-server/examples/simple-use-case/get-companies-http";
 import {
   bind,
-  lookup,
-  on,
-  value,
-  EventSink,
-  EmitEvent,
-  NodeJSLifecycleModule,
+  bundle,
+  container,
   Definition,
-  Shutdown,
-  LoggerModule,
-  LogInfo,
-  Startup,
-  Ready,
-  Exit,
+  EmitEvent,
   event,
   events,
+  EventSink,
+  Exit,
   Logger,
-  container,
-  bundle,
-} from '@badbury/ioc';
-import { GetUsers } from '@badbury/http-server/examples/use-case-with-types/get-users';
-import { GetUsersHttpRoute } from '@badbury/http-server/examples/use-case-with-types/get-users-http';
-import { HttpServerConfig } from '@badbury/http-server';
-import { Data } from '@badbury/data';
+  LoggerModule,
+  LogInfo,
+  lookup,
+  NodeJSLifecycleModule,
+  on,
+  Ready,
+  Shutdown,
+  Startup,
+  value,
+} from "../../ioc/mod.ts";
+// import { GetUsers } from "@badbury/http-server/examples/use-case-with-types/get-users";
+// import { GetUsersHttpRoute } from "@badbury/http-server/examples/use-case-with-types/get-users-http";
+// import { HttpServerConfig } from "@badbury/http-server";
+import { Data } from "../../data/mod.ts";
 // @TODO:
 // - Implement the following features:
 //   - Core
@@ -112,7 +112,7 @@ import { Data } from '@badbury/data';
 // Observer - on/do/event/events
 
 class MyConfig {
-  url = 'https://example.org';
+  url = "https://example.org";
 }
 
 class Bar {
@@ -145,7 +145,7 @@ class Box {
     this.log(str);
   }
   process(baz: Baz) {
-    this.log('Box class processing........', baz);
+    this.log("Box class processing........", baz);
   }
 }
 
@@ -195,7 +195,7 @@ class MethodModifyerTest {
   public doTheThing(name: string) {
     this.log(name);
     return {
-      type: 'Person',
+      type: "Person",
       name,
     };
   }
@@ -214,7 +214,7 @@ class BazEvent extends Data.record({
 }) {}
 
 class SingleEventTest {
-  floop = '12345';
+  floop = "12345";
 
   bazEvent = event(BazEvent);
 
@@ -276,8 +276,8 @@ class SingleEventTest {
 export class MyModule {
   register(): Definition[] {
     return [
-      config(MyConfig),
-      // bind(MyConfig).value({ url: 'https://localhost:8080' }), // e.g. for testing
+      // config(MyConfig),
+      bind(MyConfig).value({ url: "https://localhost:8080" }), // e.g. for testing
       bind(Bar),
       bind(MyModule),
       // // Requires
@@ -299,7 +299,7 @@ export class MyModule {
           lookup(MyConfig).map((config) => config.url),
           value(99),
         ),
-      bind(Foo77).factory(() => new Foo(new Bar(0.7), 'Nooo', 77)),
+      bind(Foo77).factory(() => new Foo(new Bar(0.7), "Nooo", 77)),
       bind(Foo88)
         .use(Bar, MyConfig)
         .factory((bar, config) => new Foo(bar, config.url, 88)),
@@ -308,71 +308,81 @@ export class MyModule {
       bind(Trigger).with(EventSink, EmitEvent),
       bind(MethodModifyerTest)
         .with(LogInfo)
-        .before('doTheThing', (param) => {
-          return 'Dr ' + param;
+        .before("doTheThing", (param) => {
+          return "Dr " + param;
         })
-        .teeBefore('doTheThing', (param) => console.log('About to trigger', param))
-        .intercept('doTheThing', (param, next) => {
-          param = param.split('').reverse().join('').toLowerCase();
+        .teeBefore(
+          "doTheThing",
+          (param) => console.log("About to trigger", param),
+        )
+        .intercept("doTheThing", (param, next) => {
+          param = param.split("").reverse().join("").toLowerCase();
           param = param[0].toUpperCase() + param.slice(1);
           const result = next(param);
-          result.name += ' Rogers';
+          result.name += " Rogers";
           return result;
         })
-        .teeIntercept('doTheThing', (_, next) => {
+        .teeIntercept("doTheThing", (_, next) => {
           const time = Date.now();
           next();
-          console.log('Duration of MethodModifyerTest.doTheThing was ', Date.now() - time);
+          console.log(
+            "Duration of MethodModifyerTest.doTheThing was ",
+            Date.now() - time,
+          );
         })
-        .after('doTheThing', (result) => {
-          result.type = 'Robot';
-          result.name += ' - Man of mystery';
+        .after("doTheThing", (result) => {
+          result.type = "Robot";
+          result.name += " - Man of mystery";
           return result;
         })
-        .teeAfter('doTheThing', (result) => console.log(result)),
-      bind(TigHandler).value((tig) => console.log('MY TIG MADE THE TOG', tig.makeTog())),
-      bind(SingleEventTest).listenTo('events', 'bazEvent'),
+        .teeAfter("doTheThing", (result) => console.log(result)),
+      bind(TigHandler).value((tig) =>
+        console.log("MY TIG MADE THE TOG", tig.makeTog())
+      ),
+      bind(SingleEventTest).listenTo("events", "bazEvent"),
       on(BarEvent)
         .use(LogInfo)
-        .do((bar, log) => log('All hail the BAR!', bar)),
+        .do((bar, log) => log("All hail the BAR!", bar)),
       on(FooEvent)
         .use(LogInfo)
-        .do((foo, log) => log('All hail the FOO!', foo)),
+        .do((foo, log) => log("All hail the FOO!", foo)),
       on(BazEvent)
         .use(LogInfo)
-        .do((baz, log) => log('All hail the BAZ!', baz)),
-      on(Foo).do(Trigger, 'trigger'),
+        .do((baz, log) => log("All hail the BAZ!", baz)),
+      on(Foo).do(Trigger, "trigger"),
       on(Bar)
         .use(LogInfo)
-        .do((bar, log) => log('Arrow Bar...', bar)),
-      on(Baz).do(Box, 'process'),
+        .do((bar, log) => log("Arrow Bar...", bar)),
+      on(Baz).do(Box, "process"),
       on(Baz).use(Foo88, Bar).do(this.handleBaz),
       on(Baz)
         .use(Foo88, Logger)
-        .do((baz, foo, logger) => logger.info(['Arrow Baz...', baz, foo.getBar()])),
+        .do((baz, foo, logger) =>
+          logger.info(["Arrow Baz...", baz, foo.getBar()])
+        ),
       on(Tig)
         .do((tig) => tig.makeTog())
         .emit(),
       on(Tog)
         .use(LogInfo)
-        .do((tog, log) => log('I got the tog!', tog)),
+        .do((tog, log) => log("I got the tog!", tog)),
       on(Tig).do(TigHandler),
-      bind(GetCompanies),
-      bind(GetCompaniesHttpRoute),
-      http(GetCompaniesHttpRoute)
-        .use(GetCompanies)
-        .do((req, getCompanies) => getCompanies.handle(req)),
-      bind(GetUsers),
-      bind(GetUsersHttpRoute),
-      http(GetUsersHttpRoute).do(GetUsers, 'handle'),
+      // bind(GetCompanies),
+      // bind(GetCompaniesHttpRoute),
+      // http(GetCompaniesHttpRoute)
+      //   .use(GetCompanies)
+      //   .do((req, getCompanies) => getCompanies.handle(req)),
+      // bind(GetUsers),
+      // bind(GetUsersHttpRoute),
+      // http(GetUsersHttpRoute).do(GetUsers, "handle"),
       on(Shutdown).do(async () => {
         await new Promise((resolve) => setTimeout(resolve, 2000));
       }),
-      bind(HttpServerConfig).value({ port: 8080 }),
-      every(10, 'seconds')
-        .limit(1)
-        .do(() => new Shutdown('10 seconds up', 0))
-        .emit(),
+      // bind(HttpServerConfig).value({ port: 8080 }),
+      // every(10, "seconds")
+      //   .limit(1)
+      //   .do(() => new Shutdown("10 seconds up", 0))
+      //   .emit(),
     ];
   }
 
@@ -381,55 +391,55 @@ export class MyModule {
   }
 
   handleBaz(baz: Baz, foo: Foo, bar: Bar): void {
-    console.log('Use statement', baz, foo, bar);
+    console.log("Use statement", baz, foo, bar);
   }
 }
 
-export const OtherBundle = bundle(
-  bind(SendHttpRequest).value(
-    (url) =>
-      new Promise((resolve) => {
-        const req = NodeJSHttp.request(url, (res) => {
-          res.on('data', (d) => {
-            resolve(new HttpResponse(d.toString('utf8')));
-          });
-        });
-        req.end();
-      }),
-  ),
-  every('second')
-    .and(100, 'milliseconds')
-    .use(SendHttpRequest)
-    .do(async function* (sendHttpRequest) {
-      yield sendHttpRequest('http://localhost:8080/users?limit=1');
-      yield sendHttpRequest('http://localhost:8080/companies?limit=1');
-    })
-    .emit(),
-  on(HttpResponse).do(LogInfo),
-  on(Startup).do(LogInfo),
-  on(Ready).do(LogInfo),
-  on(HttpServerStarted).do(LogInfo),
-  on(HttpServerStopped).do(LogInfo),
-  on(Shutdown).do(LogInfo),
-  on(Exit).do(LogInfo),
-);
+// export const OtherBundle = bundle(
+//   bind(SendHttpRequest).value(
+//     (url) =>
+//       new Promise((resolve) => {
+//         const req = NodeJSHttp.request(url, (res) => {
+//           res.on("data", (d) => {
+//             resolve(new HttpResponse(d.toString("utf8")));
+//           });
+//         });
+//         req.end();
+//       }),
+//   ),
+//   every("second")
+//     .and(100, "milliseconds")
+//     .use(SendHttpRequest)
+//     .do(async function* (sendHttpRequest) {
+//       yield sendHttpRequest("http://localhost:8080/users?limit=1");
+//       yield sendHttpRequest("http://localhost:8080/companies?limit=1");
+//     })
+//     .emit(),
+//   on(HttpResponse).do(LogInfo),
+//   on(Startup).do(LogInfo),
+//   on(Ready).do(LogInfo),
+//   on(HttpServerStarted).do(LogInfo),
+//   on(HttpServerStopped).do(LogInfo),
+//   on(Shutdown).do(LogInfo),
+//   on(Exit).do(LogInfo),
+// );
 
 (function () {
   // const app = new Container([
   const app = container(
     new LoggerModule(),
-    new HttpModule(),
-    new TimerModule(),
-    new ConfigModule(),
+    // new HttpModule(),
+    // new TimerModule(),
+    // new ConfigModule(),
     new NodeJSLifecycleModule(),
     new MyModule(),
-    OtherBundle,
+    // OtherBundle,
   );
   // ]);
 
-  console.log('Starting app...');
+  console.log("Starting app...");
   app.startup();
-  console.log('App started');
+  console.log("App started");
 
   const logger = app.get(Logger);
   logger.info(app.get(Bar));
@@ -444,12 +454,12 @@ export const OtherBundle = bundle(
   const tigHandler = app.get(TigHandler);
   tigHandler(new Tig());
 
-  app.emit(new StartHttpServer());
+  // app.emit(new StartHttpServer());
 
   const methodModifyerTest = app.get(MethodModifyerTest);
-  const methodModifyerTestResult = methodModifyerTest.doTheThing('Dave');
+  const methodModifyerTestResult = methodModifyerTest.doTheThing("Dave");
   console.log(methodModifyerTestResult);
-  app.get(SingleEventTest).testEventStuff('schadoosh');
+  app.get(SingleEventTest).testEventStuff("schadoosh");
 })();
 
 // MODULES START
