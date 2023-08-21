@@ -298,7 +298,7 @@ export const tuple = <
     return values;
   };
   Tuple.guard = function (values: unknown): values is T {
-    if (!Array.isArray(values)) {
+    if (!Array.isArray(values) || values.length !== definitions.length) {
       return false;
     }
     for (const [index, definition] of definitions.entries()) {
@@ -312,6 +312,65 @@ export const tuple = <
     return parse(value, this);
   };
   return Tuple;
+};
+
+type UnionOfSingleKeyObjects<T extends object> = {
+  [K in keyof T]: { [P in K]: T[P] };
+}[keyof T];
+type k = UnionOfSingleKeyObjects<{ foo: 123; bar: 456 }>;
+export type TagConstructor<
+  D extends Record<string, Constructor>,
+  T extends UnionOfSingleKeyObjects<D>,
+> = Constructor<T> & D & {
+  name: string;
+  definitions: D;
+  (values: T): T;
+  new (values: T): T;
+  prototype: T;
+};
+export const tag = <
+  D extends Record<string, Constructor>,
+  T extends UnionOfSingleKeyObjects<D>,
+>(
+  definitions: D = {} as D,
+): TagConstructor<D, T> => {
+  const properties = Object.keys(definitions) as (keyof T)[];
+  const Tag = function (this: unknown, values: T) {
+    if (!(this instanceof Tag)) {
+      return new Tag(values);
+    }
+    for (const key of properties) {
+      if (Object.hasOwn(values, key)) {
+        this[key] = values[key];
+        continue;
+      }
+    }
+  } as TagConstructor<D, T>;
+  Object.assign(Tag, definitions);
+  Tag.definitions = definitions;
+  Tag.make = function (values: T) {
+    return new this(values);
+  };
+  Tag.guard = function (values: unknown): values is T {
+    if (
+      values === null || typeof values !== "object" || values instanceof Array
+    ) {
+      return false;
+    }
+    for (const key of properties) {
+      if (
+        key in values &&
+        definitions[key as keyof D].guard((values as T)[key])
+      ) {
+        return true;
+      }
+    }
+    return false;
+  };
+  Tag.parse = function (value: unknown): T {
+    return parse(value, this);
+  };
+  return Tag;
 };
 
 export const Data = {
@@ -328,6 +387,7 @@ export const Data = {
   enum: enums,
   enums,
   tuple,
+  tag,
 };
 
 export default Data;

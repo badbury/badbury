@@ -362,16 +362,18 @@ Deno.test("Data.tuple([Data.number(), Data.string()]).guard()", () => {
   assertEquals(type.guard([1234, "hi", 5678]), false);
 });
 
-// Deno.test("Data.tag({ One: string(), Two: nil() }).guard()", () => {
-//   const type = Data.tag({ One: Data.string(), Two: Data.null() });
+Deno.test("Data.tag({ One: string(), Two: nil() }).guard()", () => {
+  const type = Data.tag({ One: Data.string(), Two: Data.null() });
 
-//   assertEquals(type.guard({ One: "hey" }), true);
-//   assertEquals(type.guard({ Two: null }), true);
-//   assertEquals(type.guard("hey"), false);
-//   assertEquals(type.guard(null), false);
-//   assertEquals(type.guard([]), false);
-//   assertEquals(type.guard({ foo: 123 }), false);
-// });
+  assertEquals(type.guard({ One: "hey" }), true);
+  assertEquals(type.guard({ Two: null }), true);
+  assertEquals(type.guard("hey"), false);
+  assertEquals(type.guard(null), false);
+  assertEquals(type.guard([]), false);
+  assertEquals(type.guard({ foo: 123 }), false);
+  assertEquals(type.guard({ One: null }), false);
+  assertEquals(type.guard({ Two: "hey" }), false);
+});
 
 export class MyClass extends record({
   string: string(),

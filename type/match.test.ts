@@ -1,4 +1,4 @@
-import {
+import Data, {
   array,
   boolean,
   number,
@@ -94,11 +94,16 @@ Deno.test("match with default", () => {
     '{"propThree":["a","b","c"]}',
   );
   assertEquals(getString(false), "false");
-
-  // const typed = Data.tag({ One: Data.string(), Two: Data.object({}) });
-
-  // match(instance)
-  //   .with(typed.One, (value) => value.propOne)
-  //   .with(typed.Two, (value) => String(value.propTwo))
-  //   .run();
 });
+
+// Deno.test("match with tag", () => {
+//   const MyTag = Data.tag({
+//     One: Data.string(),
+//     Two: Data.record({ foo: Data.number() }),
+//   });
+
+//   match({ "One": "234" })
+//     .with(MyTag.One, (value) => value.One)
+//     // .with(MyTag.Two, (value) => String(value.propTwo))
+//     .run();
+// });

@@ -34,7 +34,7 @@ import {
 // import { GetUsers } from "@badbury/http-server/examples/use-case-with-types/get-users";
 // import { GetUsersHttpRoute } from "@badbury/http-server/examples/use-case-with-types/get-users-http";
 // import { HttpServerConfig } from "@badbury/http-server";
-import { Data } from "./runtime_types/mod.ts";
+import { Data } from "./type/mod.ts";
 // @TODO:
 // - Implement the following features:
 //   - Core
