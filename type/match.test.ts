@@ -96,14 +96,14 @@ Deno.test("match with default", () => {
   assertEquals(getString(false), "false");
 });
 
-// Deno.test("match with tag", () => {
-//   const MyTag = Data.tag({
-//     One: Data.string(),
-//     Two: Data.record({ foo: Data.number() }),
-//   });
+Deno.test("match with tag", () => {
+  const MyTag = Data.tag({
+    One: Data.string(),
+    Two: Data.record({ foo: Data.number() }),
+  });
 
-//   match({ "One": "234" })
-//     .with(MyTag.One, (value) => value.One)
-//     // .with(MyTag.Two, (value) => String(value.propTwo))
-//     .run();
-// });
+  match({ "One": "234" })
+    .with(MyTag, (value) => value.One)
+    // .with(MyTag.Two, (value) => String(value.propTwo))
+    .run();
+});

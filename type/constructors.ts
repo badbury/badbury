@@ -17,8 +17,13 @@ export type ObjectOfConstructorsToTypes<
 >;
 
 export type ConstructorToType<T extends Constructor> = ReturnType<T["make"]>;
-export type ConstructorsToType<
+export type ConstructorTupleToType<
   T extends (Constructor[] | Readonly<Constructor[]>),
+> = {
+  [K in keyof T]: ConstructorToType<T[K]>;
+};
+export type ConstructorRecordToType<
+  T extends Record<string, Constructor>,
 > = {
   [K in keyof T]: ConstructorToType<T[K]>;
 };
@@ -272,7 +277,7 @@ export const enums = <T extends LiteralTypes, A extends T[]>(
 
 export interface TupleConstructor<
   D extends Readonly<Constructor[]>,
-  T extends ConstructorsToType<D>,
+  T extends ConstructorTupleToType<D>,
 > extends Constructor<T>, Array<T> {
   name: string;
   definitions: D;
@@ -281,7 +286,7 @@ export interface TupleConstructor<
 }
 export const tuple = <
   const D extends Readonly<Constructor[]>,
-  T extends ConstructorsToType<D>,
+  T extends ConstructorTupleToType<D>,
 >(
   definitions: D,
 ): TupleConstructor<D, T> => {
@@ -319,8 +324,8 @@ type UnionOfSingleKeyObjects<T extends object> = {
 }[keyof T];
 type k = UnionOfSingleKeyObjects<{ foo: 123; bar: 456 }>;
 export type TagConstructor<
+  T extends Flatten<UnionOfSingleKeyObjects<ConstructorRecordToType<D>>>,
   D extends Record<string, Constructor>,
-  T extends UnionOfSingleKeyObjects<D>,
 > = Constructor<T> & D & {
   name: string;
   definitions: D;
@@ -329,11 +334,11 @@ export type TagConstructor<
   prototype: T;
 };
 export const tag = <
+  T extends Flatten<UnionOfSingleKeyObjects<ConstructorRecordToType<D>>>,
   D extends Record<string, Constructor>,
-  T extends UnionOfSingleKeyObjects<D>,
 >(
   definitions: D = {} as D,
-): TagConstructor<D, T> => {
+): TagConstructor<T, D> => {
   const properties = Object.keys(definitions) as (keyof T)[];
   const Tag = function (this: unknown, values: T) {
     if (!(this instanceof Tag)) {
@@ -345,7 +350,7 @@ export const tag = <
         continue;
       }
     }
-  } as TagConstructor<D, T>;
+  } as TagConstructor<T, D>;
   Object.assign(Tag, definitions);
   Tag.definitions = definitions;
   Tag.make = function (values: T) {
