@@ -15,6 +15,7 @@ import {
   bundle,
   container,
   Definition,
+  DenoLifecycleModule,
   EmitEvent,
   event,
   events,
@@ -24,17 +25,16 @@ import {
   LoggerModule,
   LogInfo,
   lookup,
-  NodeJSLifecycleModule,
   on,
   Ready,
   Shutdown,
   Startup,
   value,
-} from "../../ioc/mod.ts";
+} from "./ioc/mod.ts";
 // import { GetUsers } from "@badbury/http-server/examples/use-case-with-types/get-users";
 // import { GetUsersHttpRoute } from "@badbury/http-server/examples/use-case-with-types/get-users-http";
 // import { HttpServerConfig } from "@badbury/http-server";
-import { Data } from "../../data/mod.ts";
+import { Data } from "./runtime_types/mod.ts";
 // @TODO:
 // - Implement the following features:
 //   - Core
@@ -431,7 +431,7 @@ export class MyModule {
     // new HttpModule(),
     // new TimerModule(),
     // new ConfigModule(),
-    new NodeJSLifecycleModule(),
+    new DenoLifecycleModule(),
     new MyModule(),
     // OtherBundle,
   );
