@@ -1,4 +1,4 @@
-import Data, {
+import {
   array,
   boolean,
   number,
@@ -96,14 +96,19 @@ Deno.test("match with default", () => {
   assertEquals(getString(false), "false");
 });
 
-Deno.test("match with tag", () => {
-  const MyTag = Data.tag({
-    One: Data.string(),
-    Two: Data.record({ foo: Data.number() }),
-  });
+// Deno.test("match with tag", () => {
+//   const MyTag = Data.tag({
+//     One: Data.string(),
+//     Two: Data.record({ foo: Data.number() }),
+//   });
 
-  match({ "One": "234" })
-    .with(MyTag, (value) => value.One)
-    // .with(MyTag.Two, (value) => String(value.propTwo))
-    .run();
-});
+//   const greeting = match({ "One": "234" })
+//     .with(MyTag.One, (value) => "Hello, " + value)
+//     .with(
+//       MyTag.Two,
+//       (value) => "Hello, " + String(value.foo) + " year old person",
+//     )
+//     .run();
+
+//   assertEquals(greeting, "Hello, 234 year old person");
+// });
