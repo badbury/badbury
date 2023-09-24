@@ -78,6 +78,7 @@ export class BooleanConstructor extends Boolean {
 export const boolean = () => BooleanConstructor;
 
 export class NullConstructor {
+  private constructor() {}
   static make(value: null): null {
     return value;
   }
@@ -91,6 +92,7 @@ export class NullConstructor {
 export const nil = () => NullConstructor;
 
 export class UnknownConstructor {
+  private constructor() {}
   static make(value: unknown): unknown {
     return value;
   }
@@ -106,88 +108,112 @@ export const unknown = () => UnknownConstructor;
 export interface ArrayConstructor<
   D extends Constructor,
   T extends ConstructorToType<D>,
-> extends Constructor<T[]>, Array<T> {
-  name: string;
+> extends Constructor<T[]> {
+  name: "ArrayConstructor";
   definitions: D;
-  (values: T[]): T[];
-  new (values: T[]): T[];
 }
 export const array = <D extends Constructor, T extends ConstructorToType<D>>(
   definitions: D,
 ): ArrayConstructor<D, T> => {
-  const TypedArray = function (this: typeof TypedArray, values: T[]) {
-    if (!(this instanceof TypedArray)) {
-      return new TypedArray(values);
+  return class TypedArray {
+    static definitions = definitions;
+    declare static foo: string;
+    static make(values: T[]) {
+      return values;
     }
-    if (this.guard(values)) {
-      this.push(...values);
+    static guard(values: unknown): values is T[] {
+      return Array.isArray(values) && values.every(definitions.guard);
+    }
+    static parse(value: unknown): T[] {
+      return parse(value, this);
     }
   } as ArrayConstructor<D, T>;
-  TypedArray.definitions = definitions;
-  TypedArray.make = function (values: T[]) {
-    return values;
-  };
-  TypedArray.guard = function (values: unknown): values is T[] {
-    return Array.isArray(values) && values.every(definitions.guard);
-  };
-  TypedArray.parse = function (value: unknown): T[] {
-    return parse(value, this);
-  };
-  return TypedArray;
+};
+
+export interface TupleConstructor<
+  D extends Constructor[],
+  T extends ConstructorTupleToType<D>,
+> extends Constructor<T> {
+  name: "Record";
+  definitions: D;
+}
+export const tuple = <
+  D extends Constructor[],
+  T extends ConstructorTupleToType<D>,
+>(
+  definitions: [...D],
+): TupleConstructor<D, T> => {
+  return class Tuple {
+    static definitions = definitions;
+    static make(values: T) {
+      return values;
+    }
+    static guard(values: unknown): values is T {
+      if (!Array.isArray(values) || values.length !== definitions.length) {
+        return false;
+      }
+      for (const [index, definition] of definitions.entries()) {
+        if (!definition.guard(values[index])) {
+          return false;
+        }
+      }
+      return true;
+    }
+    static parse(value: unknown): T {
+      return parse(value, this);
+    }
+  } as TupleConstructor<D, T>;
 };
 
 export interface RecordConstructor<
-  D extends Record<string, Constructor>,
   T extends ObjectOfConstructorsToTypes<D>,
+  D extends Record<string, Constructor>,
 > extends Constructor<T> {
-  name: string;
+  name: "Record";
   definitions: D;
-  (values: T): T;
   new (values: T): T;
   prototype: T;
 }
 export const record = <
-  D extends Record<string, Constructor>,
   T extends ObjectOfConstructorsToTypes<D>,
+  D extends Record<string, Constructor>,
 >(
   definitions: D = {} as D,
-): RecordConstructor<D, T> => {
+): RecordConstructor<T, D> => {
   const properties = Object.keys(definitions) as (keyof T)[];
-  const Record = function (this: unknown, values: T) {
-    if (!(this instanceof Record)) {
-      return new Record(values);
-    }
-    for (const key of properties) {
-      this[key] = values[key];
-    }
-  } as RecordConstructor<D, T>;
-  Record.definitions = definitions;
-  Record.make = function (values: T) {
-    return new this(values);
-  };
-  Record.guard = function (values: unknown): values is T {
-    if (
-      values === null || typeof values !== "object" || values instanceof Array
-    ) {
-      return false;
-    }
-    for (const key of properties) {
-      if (values !== null && !(key in values)) {
-        return false;
-      }
-      if (!definitions[key as keyof D].guard((values as T)[key])) {
-        return false;
+  return class Record {
+    static definitions = definitions;
+    constructor(values: T) {
+      for (const key of properties) {
+        (this as unknown as T)[key] = values[key];
       }
     }
-    return true;
-  };
-  Record.parse = function (value: unknown): T {
-    return parse(value, this);
-  };
-  return Record;
+    static make(values: T) {
+      return new this(values);
+    }
+    static guard(values: unknown): values is T {
+      if (
+        values === null || typeof values !== "object" || values instanceof Array
+      ) {
+        return false;
+      }
+      for (const key of properties) {
+        if (values !== null && !(key in values)) {
+          return false;
+        }
+        if (!definitions[key as keyof D].guard((values as T)[key])) {
+          return false;
+        }
+      }
+      return true;
+    }
+    static parse(value: unknown): T {
+      return parse(value, this as RecordConstructor<T, D>);
+    }
+  } as RecordConstructor<T, D>;
 };
 
-export type UnionConstructor<
+export type UnionConstructorType<
   D extends Constructor[],
   T extends ConstructorToType<D[number]>,
 > = Constructor<T> & {
@@ -199,24 +225,26 @@ export const union = <
   T extends ConstructorToType<D[number]>,
 >(
   definitions: D,
-): UnionConstructor<D, T> => ({
-  name: "UnionConstructor",
-  definitions,
-  make(value: T): T {
-    for (const definition of definitions) {
-      if (definition.guard(value)) {
-        return (definition as Constructor<T>).make(value);
+): UnionConstructorType<D, T> => {
+  return class UnionConstructor {
+    static definitions = definitions;
+    private constructor() {}
+    static make(value: T): T {
+      for (const definition of definitions) {
+        if (definition.guard(value)) {
+          return (definition as Constructor<T>).make(value);
+        }
       }
+      return value;
     }
-    return value;
-  },
-  guard(subject: T): subject is T {
-    return definitions.some((definition) => definition.guard(subject));
-  },
-  parse(value: unknown): T {
-    return parse(value, this);
-  },
-});
+    static guard(subject: T): subject is T {
+      return definitions.some((definition) => definition.guard(subject));
+    }
+    static parse(value: unknown): T {
+      return parse(value, this);
+    }
+  } as UnionConstructorType<D, T>;
+};
 
 type LiteralTypes =
   | string
@@ -227,30 +255,32 @@ type LiteralTypes =
   | undefined
   | Record<string, unknown>;
 
-export type LiteralConstructor<T extends LiteralTypes> = Constructor<T> & {
+export type LiteralConstructorType<T extends LiteralTypes> = Constructor<T> & {
   name: "LiteralConstructor";
   value: T;
 };
 export const literal = <T extends LiteralTypes>(
   value: T,
-): LiteralConstructor<T> => ({
-  name: "LiteralConstructor",
-  value,
-  make(value: Identity<T>): T {
-    return value;
-  },
-  guard(subject: T): subject is T {
-    if (typeof value === "number" && Number.isNaN(value)) {
-      return typeof subject === "number" && Number.isNaN(subject);
+): LiteralConstructorType<T> => {
+  return class LiteralConstructor {
+    static value = value;
+    private constructor() {}
+    static make(value: Identity<T>): T {
+      return value;
     }
-    return value === subject;
-  },
-  parse(value: unknown): T {
-    return parse(value, this);
-  },
-});
+    static guard(subject: T): subject is T {
+      if (typeof value === "number" && Number.isNaN(value)) {
+        return typeof subject === "number" && Number.isNaN(subject);
+      }
+      return value === subject;
+    }
+    static parse(value: unknown): T {
+      return parse(value, this as LiteralConstructorType<T>);
+    }
+  } as LiteralConstructorType<T>;
+};
 
-export type EnumConstructor<T extends LiteralTypes, A extends T[]> =
+export type EnumConstructorType<T extends LiteralTypes, A extends T[]> =
   & Constructor<A[number]>
   & {
     name: "EnumConstructor";
@@ -258,65 +288,23 @@ export type EnumConstructor<T extends LiteralTypes, A extends T[]> =
   };
 export const enums = <T extends LiteralTypes, A extends T[]>(
   values: A,
-): EnumConstructor<T, A> => ({
-  name: "EnumConstructor",
-  values,
-  make(value: Identity<A[number]>): A[number] {
-    return value;
-  },
-  guard(subject: A[number]): subject is A[number] {
-    if (typeof subject === "number" && Number.isNaN(subject)) {
-      return values.some(Number.isNaN);
+): EnumConstructorType<T, A> => {
+  return class EnumConstructor {
+    static values = values;
+    private constructor() {}
+    static make(value: Identity<A[number]>): A[number] {
+      return value;
     }
-    return values.includes(subject);
-  },
-  parse(value: unknown): A[number] {
-    return parse(value, this);
-  },
-});
-
-export interface TupleConstructor<
-  D extends Readonly<Constructor[]>,
-  T extends ConstructorTupleToType<D>,
-> extends Constructor<T>, Array<T> {
-  name: string;
-  definitions: D;
-  (values: T[]): T[];
-  new (values: T[]): T[];
-}
-export const tuple = <
-  const D extends Readonly<Constructor[]>,
-  T extends ConstructorTupleToType<D>,
->(
-  definitions: D,
-): TupleConstructor<D, T> => {
-  const Tuple = function (this: typeof Tuple, values: T[]) {
-    if (!(this instanceof Tuple)) {
-      return new Tuple(values);
-    }
-    if (this.guard(values)) {
-      this.push(...values);
-    }
-  } as TupleConstructor<D, T>;
-  Tuple.definitions = definitions;
-  Tuple.make = function (values: T) {
-    return values;
-  };
-  Tuple.guard = function (values: unknown): values is T {
-    if (!Array.isArray(values) || values.length !== definitions.length) {
-      return false;
-    }
-    for (const [index, definition] of definitions.entries()) {
-      if (!definition.guard(values[index])) {
-        return false;
+    static guard(subject: A[number]): subject is A[number] {
+      if (typeof subject === "number" && Number.isNaN(subject)) {
+        return values.some(Number.isNaN);
       }
+      return values.includes(subject);
     }
-    return true;
-  };
-  Tuple.parse = function (value: unknown): T {
-    return parse(value, this);
-  };
-  return Tuple;
+    static parse(value: unknown): A[number] {
+      return parse(value, this);
+    }
+  } as EnumConstructorType<T, A>;
 };
 
 type UnionOfSingleKeyObjects<T extends object> = {
@@ -329,7 +317,6 @@ export type TagConstructor<
 > = Constructor<T> & D & {
   name: string;
   definitions: D;
-  (values: T): T;
   new (values: T): T;
   prototype: T;
 };
@@ -340,41 +327,40 @@ export const tag = <
   definitions: D = {} as D,
 ): TagConstructor<T, D> => {
   const properties = Object.keys(definitions) as (keyof T)[];
-  const Tag = function (this: unknown, values: T) {
-    if (!(this instanceof Tag)) {
-      return new Tag(values);
-    }
-    for (const key of properties) {
-      if (Object.hasOwn(values, key)) {
-        this[key] = values[key];
-        continue;
+  const Tag = class Tag {
+    static definitions = definitions;
+    constructor(values: T) {
+      for (const key of properties) {
+        if (Object.hasOwn(values, key)) {
+          (this as unknown as T)[key] = values[key];
+          continue;
+        }
       }
+    }
+    static make(values: T) {
+      return values;
+    }
+    static guard(values: unknown): values is T {
+      if (
+        values === null || typeof values !== "object" || values instanceof Array
+      ) {
+        return false;
+      }
+      for (const key of properties) {
+        if (
+          key in values &&
+          definitions[key as keyof D].guard((values as T)[key])
+        ) {
+          return true;
+        }
+      }
+      return false;
+    }
+    static parse(value: unknown): T {
+      return parse(value, this as TagConstructor<T, D>);
     }
   } as TagConstructor<T, D>;
   Object.assign(Tag, definitions);
-  Tag.definitions = definitions;
-  Tag.make = function (values: T) {
-    return new this(values);
-  };
-  Tag.guard = function (values: unknown): values is T {
-    if (
-      values === null || typeof values !== "object" || values instanceof Array
-    ) {
-      return false;
-    }
-    for (const key of properties) {
-      if (
-        key in values &&
-        definitions[key as keyof D].guard((values as T)[key])
-      ) {
-        return true;
-      }
-    }
-    return false;
-  };
-  Tag.parse = function (value: unknown): T {
-    return parse(value, this);
-  };
   return Tag;
 };
 

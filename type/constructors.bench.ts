@@ -107,6 +107,34 @@ const MyZodType = myz.object({
   }),
 });
 
+import * as valibot from "https://deno.land/x/valibot@v0.15.0/mod.ts";
+
+const MyValibotType = valibot.object({
+  string: valibot.string(),
+  number: valibot.number(),
+  unknown: valibot.unknown(),
+  boolean: valibot.boolean(),
+  null: valibot.nullType(),
+  literal: valibot.literal("steve"),
+  enum: valibot.enumType(["1", "true", "three"]),
+  tuple: valibot.tuple([valibot.boolean(), valibot.string()]),
+  array: valibot.array(valibot.string()),
+  union: valibot.union([
+    valibot.object({ prop1: valibot.string() }),
+    valibot.object({ prop2: valibot.number() }),
+    valibot.boolean(),
+  ]),
+  arrayOfUnion: valibot.array(
+    valibot.union([valibot.string(), valibot.boolean()]),
+  ),
+  object: valibot.object({
+    prop: valibot.string(),
+    nestedObject: valibot.object({
+      nestedProp: valibot.number(),
+    }),
+  }),
+});
+
 import * as s from "npm:superstruct";
 
 const SuperstructType = s.object({
@@ -174,12 +202,18 @@ Deno.bench("ZodType parse", () => {
 Deno.bench("MyZodType parse", () => {
   MyZodType.parse(testData);
 });
+Deno.bench("MyValibotType parse", () => {
+  valibot.parse(MyValibotType, testData);
+});
 Deno.bench("SuperstructType parse", () => {
   s.create(testData, SuperstructType);
 });
 
 Deno.bench("BadburyType check", () => {
   assertEquals(BadburyType.guard(testData), true);
+});
+Deno.bench("MyValibotType check", () => {
+  assertEquals(valibot.is(MyValibotType, testData), true);
 });
 Deno.bench("SuperstructType check", () => {
   assertEquals(s.is(testData, SuperstructType), true);

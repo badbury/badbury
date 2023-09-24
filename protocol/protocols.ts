@@ -31,12 +31,13 @@ export function protocol<T extends AnyFunction>(): T {
 }
 
 type ProtocolModule = Record<string, AnyFunction>;
+type Writeable<T> = { -readonly [P in keyof T]: T[P] };
 type Identity<T> = T;
 type Flatten<T extends object> = Identity<{ [k in keyof T]: T[k] }>;
 
 type BindRules<T extends ProtocolModule> = {
   protocol: () => Promise<T> | T;
-  to: () => Promise<Flatten<T>> | Flatten<T>;
+  to: () => Promise<Flatten<Writeable<T>>> | Flatten<Writeable<T>>;
 };
 
 export async function bind<T extends ProtocolModule>(rules: BindRules<T>) {

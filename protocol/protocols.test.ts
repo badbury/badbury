@@ -10,7 +10,7 @@ Deno.test("Duno", async () => {
   await bind({
     protocol: () => import("./foo.ts"),
     to: () => ({
-      doThing: () => "mocked boy",
+      doThing: (_a, _b) => "mocked boy",
     }),
   });
 

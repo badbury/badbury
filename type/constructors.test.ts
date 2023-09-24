@@ -8,6 +8,7 @@ import {
   number,
   record,
   string,
+  tag,
   union,
   unknown,
 } from "./constructors.ts";
@@ -15,6 +16,8 @@ import { assertEquals } from "https://deno.land/std@0.198.0/assert/assert_equals
 import { assertInstanceOf } from "https://deno.land/std@0.198.0/assert/assert_instance_of.ts";
 import { assertThrows } from "https://deno.land/std@0.198.0/assert/assert_throws.ts";
 import { tuple } from "./mod.ts";
+
+/** String */
 
 Deno.test("Data.string().make()", () => {
   const type = Data.string();
@@ -33,6 +36,8 @@ Deno.test("Data.string().guard()", () => {
   assertEquals(type.guard(1234), false);
 });
 
+/** Number */
+
 Deno.test("Data.number().make()", () => {
   const type = Data.number();
 
@@ -49,6 +54,8 @@ Deno.test("Data.number().guard()", () => {
 
   assertEquals(type.guard("hi"), false);
 });
+
+/** Boolean */
 
 Deno.test("Data.boolean().make()", () => {
   const type = Data.boolean();
@@ -69,6 +76,8 @@ Deno.test("Data.boolean().guard()", () => {
   assertEquals(type.guard("hi"), false);
 });
 
+/** Null */
+
 Deno.test("Data.null().make()", () => {
   const type = Data.null();
 
@@ -85,6 +94,8 @@ Deno.test("Data.null().guard()", () => {
 
   assertEquals(type.guard("hi"), false);
 });
+
+/** Literal */
 
 Deno.test('Data.literal("hi").make()', () => {
   const type = Data.literal("hi");
@@ -149,6 +160,8 @@ Deno.test('Data.literal([1, true, "three"]).guard()', () => {
   assertEquals(type.guard(false), false);
 });
 
+/** Unknown */
+
 Deno.test("Data.unknown().make()", () => {
   const type = Data.unknown();
 
@@ -168,6 +181,8 @@ Deno.test("Data.unknown().guard()", () => {
   assertEquals(type.guard(null), true);
   assertEquals(type.guard({ property: [1234] }), true);
 });
+
+/** Array */
 
 Deno.test("Data.array(Data.string()).make()", () => {
   const type = Data.array(Data.string());
@@ -193,6 +208,8 @@ Deno.test("Data.array(Data.string()).guard()", () => {
   assertEquals(type.guard(["hi", "hello", "good day"]), true);
   assertEquals(type.guard(["hi", "hello", "good day"]), true);
 });
+
+/** Record */
 
 Deno.test("Data.record({ prop: Data.number() }).make()", () => {
   const type = Data.record({ prop: Data.number() });
@@ -253,6 +270,8 @@ Deno.test("new class Type extends Data.record({ prop: Data.number() }) {} > .gua
   assertEquals(Type.guard([{ prop: 1234 }]), false);
   assertEquals(Type.guard({ prop: [1234] }), false);
 });
+
+/** Union */
 
 Deno.test("Data.union([Data.number(), Data.string()]).make()", () => {
   const type = Data.union([Data.number(), Data.string()]);
@@ -335,6 +354,8 @@ Deno.test("Data.union([RecordOne, RecordTwo]).parse()", () => {
   assertThrows(() => RecordTwo.parse(instanceOne), Error, "Can not parse");
 });
 
+/** Tuple */
+
 Deno.test("Data.tuple([Data.number(), Data.string()]).make()", () => {
   const type = tuple([Data.number(), Data.string()]);
 
@@ -362,6 +383,28 @@ Deno.test("Data.tuple([Data.number(), Data.string()]).guard()", () => {
   assertEquals(type.guard([1234, "hi", 5678]), false);
 });
 
+/** Tag */
+
+Deno.test("Data.tag({ One: string(), Two: nil() }).make()", () => {
+  const type = Data.tag({ One: Data.string(), Two: Data.null() });
+
+  assertEquals(type.make({ One: "hey" }), { One: "hey" });
+  assertEquals(type.make({ Two: null }), { Two: null });
+
+  // @ts-expect-error "Invalid make type"
+  type.make("hey");
+  // @ts-expect-error "Invalid make type"
+  type.make(null);
+  // @ts-expect-error "Invalid make type"
+  type.make([]);
+  // @ts-expect-error "Invalid make type"
+  type.make({ foo: 123 });
+  // @ts-expect-error "Invalid make type"
+  type.make({ One: null });
+  // @ts-expect-error "Invalid make type"
+  type.make({ Two: "hey" });
+});
+
 Deno.test("Data.tag({ One: string(), Two: nil() }).guard()", () => {
   const type = Data.tag({ One: Data.string(), Two: Data.null() });
 
@@ -374,6 +417,8 @@ Deno.test("Data.tag({ One: string(), Two: nil() }).guard()", () => {
   assertEquals(type.guard({ One: null }), false);
   assertEquals(type.guard({ Two: "hey" }), false);
 });
+
+/** Combos */
 
 export class MyClass extends record({
   string: string(),
@@ -390,6 +435,10 @@ export class MyClass extends record({
     record({ prop2: number() }),
     boolean(),
   ]),
+  tag: tag({
+    result: number(),
+    error: string(),
+  }),
   arrayOfUnion: array(union([string(), boolean()])),
   tupleWithUnion: tuple([union([string(), boolean()]), number()]),
   object: record({
@@ -412,6 +461,7 @@ Deno.test("Use large records as a constructor", () => {
     tuple: [true, "hey"],
     array: ["1", "1", "1"],
     union: { prop1: "hello" },
+    tag: { error: "could not parse" },
     arrayOfUnion: ["1", true, false, "2"],
     tupleWithUnion: [false, 1],
     object: {
@@ -434,11 +484,12 @@ Deno.test("Use large records as a type argument", () => {
     null: null,
     literal: "steve" as const,
     enum: true as const,
-    tuple: [false, "bye"] as const,
+    tuple: [false, "bye"] as [boolean, string],
     array: ["1"],
     union: { prop2: 1234 },
+    tag: { result: 1 },
     arrayOfUnion: ["1", true],
-    tupleWithUnion: ["hey", 3] as const,
+    tupleWithUnion: ["hey", 3] as [string, number],
     object: {
       prop: "13",
       nestedObject: { nestedProp: 2 },
