@@ -2,6 +2,7 @@ export type Identity<T> = T;
 type Flatten<T extends object> = Identity<{ [k in keyof T]: T[k] }>;
 
 export type Constructor<T = unknown> = {
+  checkExpression: string;
   make(t: T): T;
   guard(subject: unknown): subject is T;
   parse(subject: unknown): T;
@@ -28,17 +29,26 @@ export type ConstructorRecordToType<
   [K in keyof T]: ConstructorToType<T[K]>;
 };
 
+const parserCache = new Map();
 export function parse<T>(value: unknown, constructor: Constructor<T>): T {
   if (typeof constructor === "function" && value instanceof constructor) {
     return value as T;
   }
-  if (constructor.guard(value)) {
+  if (parserCache.has(constructor)) {
+    return parserCache.get(constructor)(value);
+  }
+  const fn = Function("value", `return ${constructor.checkExpression}`) as (
+    value: unknown,
+  ) => value is T;
+  parserCache.set(constructor, fn);
+  if (fn(value)) {
     return constructor.make(value);
   }
   throw new Error(`Can not parse ${value} into a ${constructor.name}`);
 }
 
 export class StringConstructor extends String {
+  static checkExpression = 'typeof value === "string"';
   static make(value: string): string {
     return value;
   }
@@ -52,6 +62,7 @@ export class StringConstructor extends String {
 export const string = () => StringConstructor;
 
 export class NumberConstructor extends Number {
+  static checkExpression = 'typeof value === "number"';
   static make(value: number): number {
     return value;
   }
@@ -65,6 +76,7 @@ export class NumberConstructor extends Number {
 export const number = () => NumberConstructor;
 
 export class BooleanConstructor extends Boolean {
+  static checkExpression = 'typeof value === "boolean"';
   static make(value: boolean): boolean {
     return value;
   }
@@ -79,6 +91,7 @@ export const boolean = () => BooleanConstructor;
 
 export class NullConstructor {
   private constructor() {}
+  static checkExpression = "value === null";
   static make(value: null): null {
     return value;
   }
@@ -93,6 +106,7 @@ export const nil = () => NullConstructor;
 
 export class UnknownConstructor {
   private constructor() {}
+  static checkExpression = "true";
   static make(value: unknown): unknown {
     return value;
   }
@@ -117,6 +131,9 @@ export const array = <D extends Constructor, T extends ConstructorToType<D>>(
 ): ArrayConstructor<D, T> => {
   return class TypedArray {
     static definitions = definitions;
+    static get checkExpression() {
+      return `Array.isArray(value) && value.every((value) => ${definitions.checkExpression})`;
+    }
     declare static foo: string;
     static make(values: T[]) {
       return values;
@@ -145,6 +162,16 @@ export const tuple = <
 ): TupleConstructor<D, T> => {
   return class Tuple {
     static definitions = definitions;
+    static get checkExpression() {
+      const children = Array.from(definitions.entries())
+        .map(([index, definition]) =>
+          `((value) => ${definition.checkExpression})(value[${index}])`
+        )
+        .join(" && ");
+      return `Array.isArray(value)` +
+        ` && value.length === ${definitions.length}` +
+        ` && ${children}`;
+    }
     static make(values: T) {
       return values;
     }
@@ -183,6 +210,20 @@ export const record = <
   const properties = Object.keys(definitions) as (keyof T)[];
   return class Record {
     static definitions = definitions;
+    static get checkExpression() {
+      const children = (properties as string[])
+        .map((key) =>
+          `"${key}" in value` +
+          ` && ((value) => ${
+            definitions[key].checkExpression
+          })(value["${key}"])`
+        )
+        .join(" && ");
+      return `value !== null` +
+        ` && typeof value === "object"` +
+        ` && !(value instanceof Array)` +
+        ` && ${children}`;
+    }
     constructor(values: T) {
       for (const key of properties) {
         (this as unknown as T)[key] = values[key];
@@ -228,6 +269,12 @@ export const union = <
 ): UnionConstructorType<D, T> => {
   return class UnionConstructor {
     static definitions = definitions;
+    static get checkExpression() {
+      const children = this.definitions
+        .map((definition) => `(${definition.checkExpression})`)
+        .join(" || ");
+      return `(${children})`;
+    }
     private constructor() {}
     static make(value: T): T {
       for (const definition of definitions) {
@@ -264,6 +311,12 @@ export const literal = <T extends LiteralTypes>(
 ): LiteralConstructorType<T> => {
   return class LiteralConstructor {
     static value = value;
+    static get checkExpression() {
+      if (typeof value === "number" && Number.isNaN(value)) {
+        return `typeof value === "number" && Number.isNaN(value)`;
+      }
+      return `value === ${JSON.stringify(value)}`;
+    }
     private constructor() {}
     static make(value: Identity<T>): T {
       return value;
@@ -291,6 +344,10 @@ export const enums = <T extends LiteralTypes, A extends T[]>(
 ): EnumConstructorType<T, A> => {
   return class EnumConstructor {
     static values = values;
+    static get checkExpression() {
+      if (!Array.isArray(this.values)) throw new Error("Enum must be an array");
+      return JSON.stringify(this.values) + `.includes(value)`;
+    }
     private constructor() {}
     static make(value: Identity<A[number]>): A[number] {
       return value;
@@ -329,6 +386,12 @@ export const tag = <
   const properties = Object.keys(definitions) as (keyof T)[];
   const Tag = class Tag {
     static definitions = definitions;
+    static get checkExpression() {
+      const children = Object.keys(definitions)
+        .map((key) => `((value) => ${this.definitions[key]})(value["${key}"]))`)
+        .join(" || ");
+      return `(${children})`;
+    }
     constructor(values: T) {
       for (const key of properties) {
         if (Object.hasOwn(values, key)) {
