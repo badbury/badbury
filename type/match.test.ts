@@ -1,11 +1,4 @@
-import {
-  array,
-  boolean,
-  number,
-  record,
-  string,
-  union,
-} from "./constructors.ts";
+import { array, boolean, number, record, string, union } from "./mod.ts";
 import { match } from "./match.ts";
 import { assertEquals } from "https://deno.land/std@0.198.0/assert/assert_equals.ts";
 

@@ -11,7 +11,7 @@ import {
   tuple,
   union,
   unknown,
-} from "./constructors.ts";
+} from "./mod.ts";
 
 const testData = {
   string: "123",
@@ -210,7 +210,7 @@ Deno.bench("SuperstructType parse", () => {
 });
 
 Deno.bench("BadburyType check", () => {
-  assertEquals(BadburyType.guard(testData), true);
+  assertEquals(BadburyType.is(testData), true);
 });
 Deno.bench("MyValibotType check", () => {
   assertEquals(valibot.is(MyValibotType, testData), true);

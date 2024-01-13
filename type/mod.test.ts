@@ -1,7 +1,11 @@
-import {
+import * as Data from "./mod.ts";
+import { assertEquals } from "https://deno.land/std@0.198.0/assert/assert_equals.ts";
+import { assertInstanceOf } from "https://deno.land/std@0.198.0/assert/assert_instance_of.ts";
+import { assertThrows } from "https://deno.land/std@0.198.0/assert/assert_throws.ts";
+
+const {
   array,
   boolean,
-  Data,
   enums,
   literal,
   nil,
@@ -9,13 +13,10 @@ import {
   record,
   string,
   tag,
+  tuple,
   union,
   unknown,
-} from "./constructors.ts";
-import { assertEquals } from "https://deno.land/std@0.198.0/assert/assert_equals.ts";
-import { assertInstanceOf } from "https://deno.land/std@0.198.0/assert/assert_instance_of.ts";
-import { assertThrows } from "https://deno.land/std@0.198.0/assert/assert_throws.ts";
-import { tuple } from "./mod.ts";
+} = Data;
 
 /** String */
 
@@ -28,12 +29,12 @@ Deno.test("Data.string().make()", () => {
   type.make(1234);
 });
 
-Deno.test("Data.string().guard()", () => {
+Deno.test("Data.string().is()", () => {
   const type = Data.string();
 
-  assertEquals(type.guard("hi"), true);
+  assertEquals(type.is("hi"), true);
 
-  assertEquals(type.guard(1234), false);
+  assertEquals(type.is(1234), false);
 });
 
 /** Number */
@@ -47,12 +48,12 @@ Deno.test("Data.number().make()", () => {
   type.make("hi");
 });
 
-Deno.test("Data.number().guard()", () => {
+Deno.test("Data.number().is()", () => {
   const type = Data.number();
 
-  assertEquals(type.guard(1234), true);
+  assertEquals(type.is(1234), true);
 
-  assertEquals(type.guard("hi"), false);
+  assertEquals(type.is("hi"), false);
 });
 
 /** Boolean */
@@ -67,19 +68,19 @@ Deno.test("Data.boolean().make()", () => {
   type.make("hi");
 });
 
-Deno.test("Data.boolean().guard()", () => {
+Deno.test("Data.boolean().is()", () => {
   const type = Data.boolean();
 
-  assertEquals(type.guard(true), true);
-  assertEquals(type.guard(false), true);
+  assertEquals(type.is(true), true);
+  assertEquals(type.is(false), true);
 
-  assertEquals(type.guard("hi"), false);
+  assertEquals(type.is("hi"), false);
 });
 
 /** Null */
 
 Deno.test("Data.null().make()", () => {
-  const type = Data.null();
+  const type = Data.nil();
 
   assertEquals(type.make(null), null);
 
@@ -87,12 +88,12 @@ Deno.test("Data.null().make()", () => {
   type.make("hi");
 });
 
-Deno.test("Data.null().guard()", () => {
-  const type = Data.null();
+Deno.test("Data.null().is()", () => {
+  const type = Data.nil();
 
-  assertEquals(type.guard(null), true);
+  assertEquals(type.is(null), true);
 
-  assertEquals(type.guard("hi"), false);
+  assertEquals(type.is("hi"), false);
 });
 
 /** Literal */
@@ -106,13 +107,13 @@ Deno.test('Data.literal("hi").make()', () => {
   type.make("hello");
 });
 
-Deno.test('Data.literal("hi").guard()', () => {
+Deno.test('Data.literal("hi").is()', () => {
   const type = Data.literal("hi");
 
-  assertEquals(type.guard("hi"), true);
+  assertEquals(type.is("hi"), true);
 
-  assertEquals(type.guard("hello"), false);
-  assertEquals(type.guard(1234), false);
+  assertEquals(type.is("hello"), false);
+  assertEquals(type.is(1234), false);
 });
 
 Deno.test("Data.literal(NaN).make()", () => {
@@ -124,17 +125,17 @@ Deno.test("Data.literal(NaN).make()", () => {
   type.make("NaN");
 });
 
-Deno.test("Data.literal(NaN).guard()", () => {
+Deno.test("Data.literal(NaN).is()", () => {
   const type = Data.literal(NaN);
 
-  assertEquals(type.guard(NaN), true);
+  assertEquals(type.is(NaN), true);
 
-  assertEquals(type.guard("hello"), false);
-  assertEquals(type.guard(1234), false);
+  assertEquals(type.is("hello"), false);
+  assertEquals(type.is(1234), false);
 });
 
-Deno.test('Data.literal([1, true, "three"]).make()', () => {
-  const type = Data.enum([1, true, "three"]);
+Deno.test('Data.enums([1, true, "three"]).make()', () => {
+  const type = Data.enums([1, true, "three"]);
 
   assertEquals(type.make(1), 1);
   assertEquals(type.make(true), true);
@@ -148,16 +149,16 @@ Deno.test('Data.literal([1, true, "three"]).make()', () => {
   type.make(false);
 });
 
-Deno.test('Data.literal([1, true, "three"]).guard()', () => {
-  const type = Data.enum([1, true, "three"]);
+Deno.test('Data.enums([1, true, "three"]).is()', () => {
+  const type = Data.enums([1, true, "three"]);
 
-  assertEquals(type.guard(1), true);
-  assertEquals(type.guard(true), true);
-  assertEquals(type.guard("three"), true);
+  assertEquals(type.is(1), true);
+  assertEquals(type.is(true), true);
+  assertEquals(type.is("three"), true);
 
-  assertEquals(type.guard("foo"), false);
-  assertEquals(type.guard(2), false);
-  assertEquals(type.guard(false), false);
+  assertEquals(type.is("foo"), false);
+  assertEquals(type.is(2), false);
+  assertEquals(type.is(false), false);
 });
 
 /** Unknown */
@@ -172,14 +173,14 @@ Deno.test("Data.unknown().make()", () => {
   assertEquals(type.make({ property: [1234] }), { property: [1234] });
 });
 
-Deno.test("Data.unknown().guard()", () => {
+Deno.test("Data.unknown().is()", () => {
   const type = Data.unknown();
 
-  assertEquals(type.guard(1234), true);
-  assertEquals(type.guard("hi"), true);
-  assertEquals(type.guard(true), true);
-  assertEquals(type.guard(null), true);
-  assertEquals(type.guard({ property: [1234] }), true);
+  assertEquals(type.is(1234), true);
+  assertEquals(type.is("hi"), true);
+  assertEquals(type.is(true), true);
+  assertEquals(type.is(null), true);
+  assertEquals(type.is({ property: [1234] }), true);
 });
 
 /** Array */
@@ -199,14 +200,14 @@ Deno.test("Data.array(Data.string()).make()", () => {
   type.make([123]);
 });
 
-Deno.test("Data.array(Data.string()).guard()", () => {
+Deno.test("Data.array(Data.string()).is()", () => {
   const type = Data.array(Data.string());
 
-  assertEquals(type.guard("hi"), false);
-  assertEquals(type.guard([]), true);
-  assertEquals(type.guard(["hi"]), true);
-  assertEquals(type.guard(["hi", "hello", "good day"]), true);
-  assertEquals(type.guard(["hi", "hello", "good day"]), true);
+  assertEquals(type.is("hi"), false);
+  assertEquals(type.is([]), true);
+  assertEquals(type.is(["hi"]), true);
+  assertEquals(type.is(["hi", "hello", "good day"]), true);
+  assertEquals(type.is(["hi", "hello", "good day"]), true);
 });
 
 /** Record */
@@ -247,28 +248,28 @@ Deno.test("new class Type extends Data.record({ prop: Data.number() }) {} > .mak
   new Type({ prop2: 1234 });
 });
 
-Deno.test("Data.record({ prop: Data.number() }).guard()", () => {
+Deno.test("Data.record({ prop: Data.number() }).is()", () => {
   const type = Data.record({ prop: Data.number() });
 
-  assertEquals(type.guard({ prop: 1234 }), true);
-  assertEquals(type.guard({ prop: 0 }), true);
-  assertEquals(type.guard({ prop: NaN }), true);
-  assertEquals(type.guard({ prop: "hey" }), false);
-  assertEquals(type.guard({ prop2: 1234 }), false);
-  assertEquals(type.guard([{ prop: 1234 }]), false);
-  assertEquals(type.guard({ prop: [1234] }), false);
+  assertEquals(type.is({ prop: 1234 }), true);
+  assertEquals(type.is({ prop: 0 }), true);
+  assertEquals(type.is({ prop: NaN }), true);
+  assertEquals(type.is({ prop: "hey" }), false);
+  assertEquals(type.is({ prop2: 1234 }), false);
+  assertEquals(type.is([{ prop: 1234 }]), false);
+  assertEquals(type.is({ prop: [1234] }), false);
 });
 
-Deno.test("new class Type extends Data.record({ prop: Data.number() }) {} > .guard()", () => {
+Deno.test("new class Type extends Data.record({ prop: Data.number() }) {} > .is()", () => {
   class Type extends Data.record({ prop: Data.number() }) {}
 
-  assertEquals(Type.guard({ prop: 1234 }), true);
-  assertEquals(Type.guard({ prop: 0 }), true);
-  assertEquals(Type.guard({ prop: NaN }), true);
-  assertEquals(Type.guard({ prop: "hey" }), false);
-  assertEquals(Type.guard({ prop2: 1234 }), false);
-  assertEquals(Type.guard([{ prop: 1234 }]), false);
-  assertEquals(Type.guard({ prop: [1234] }), false);
+  assertEquals(Type.is({ prop: 1234 }), true);
+  assertEquals(Type.is({ prop: 0 }), true);
+  assertEquals(Type.is({ prop: NaN }), true);
+  assertEquals(Type.is({ prop: "hey" }), false);
+  assertEquals(Type.is({ prop2: 1234 }), false);
+  assertEquals(Type.is([{ prop: 1234 }]), false);
+  assertEquals(Type.is({ prop: [1234] }), false);
 });
 
 /** Union */
@@ -284,13 +285,13 @@ Deno.test("Data.union([Data.number(), Data.string()]).make()", () => {
   type.make([1234]);
 });
 
-Deno.test("Data.union([Data.number(), Data.string()]).guard()", () => {
+Deno.test("Data.union([Data.number(), Data.string()]).is()", () => {
   const type = Data.union([Data.number(), Data.string()]);
 
-  assertEquals(type.guard(1234), true);
-  assertEquals(type.guard("hi"), true);
-  assertEquals(type.guard(true), false);
-  assertEquals(type.guard([1234]), false);
+  assertEquals(type.is(1234), true);
+  assertEquals(type.is("hi"), true);
+  assertEquals(type.is(true), false);
+  assertEquals(type.is([1234]), false);
 });
 
 Deno.test("Data.union([RecordOne, RecordTwo]).make()", () => {
@@ -317,7 +318,7 @@ Deno.test("Data.union([RecordOne, RecordTwo]).make()", () => {
   type.make({});
 });
 
-Deno.test("Data.union([RecordOne, RecordTwo]).guard()", () => {
+Deno.test("Data.union([RecordOne, RecordTwo]).is()", () => {
   class RecordOne extends Data.record({
     propOne: Data.string(),
   }) {}
@@ -326,13 +327,13 @@ Deno.test("Data.union([RecordOne, RecordTwo]).guard()", () => {
   }) {}
   const type = Data.union([RecordOne, RecordTwo]);
 
-  assertEquals(type.guard({ propOne: "hi" }), true);
-  assertEquals(type.guard({ propTwo: 1234 }), true);
+  assertEquals(type.is({ propOne: "hi" }), true);
+  assertEquals(type.is({ propTwo: 1234 }), true);
 
-  assertEquals(type.guard({ propOne: 1234 }), false);
-  assertEquals(type.guard({ propTwo: "hi" }), false);
-  assertEquals(type.guard(true), false);
-  assertEquals(type.guard({}), false);
+  assertEquals(type.is({ propOne: 1234 }), false);
+  assertEquals(type.is({ propTwo: "hi" }), false);
+  assertEquals(type.is(true), false);
+  assertEquals(type.is({}), false);
 });
 
 Deno.test("Data.union([RecordOne, RecordTwo]).parse()", () => {
@@ -372,21 +373,21 @@ Deno.test("Data.tuple([Data.number(), Data.string()]).make()", () => {
   type.make([1234, "hi", 5678]);
 });
 
-Deno.test("Data.tuple([Data.number(), Data.string()]).guard()", () => {
+Deno.test("Data.tuple([Data.number(), Data.string()]).is()", () => {
   const type = Data.tuple([Data.number(), Data.string()]);
 
-  assertEquals(type.guard([1234, "hi"]), true);
-  assertEquals(type.guard(true), false);
-  assertEquals(type.guard([1234]), false);
-  assertEquals(type.guard([]), false);
-  assertEquals(type.guard(["hi", 1234]), false);
-  assertEquals(type.guard([1234, "hi", 5678]), false);
+  assertEquals(type.is([1234, "hi"]), true);
+  assertEquals(type.is(true), false);
+  assertEquals(type.is([1234]), false);
+  assertEquals(type.is([]), false);
+  assertEquals(type.is(["hi", 1234]), false);
+  assertEquals(type.is([1234, "hi", 5678]), false);
 });
 
 /** Tag */
 
 Deno.test("Data.tag({ One: string(), Two: nil() }).make()", () => {
-  const type = Data.tag({ One: Data.string(), Two: Data.null() });
+  const type = Data.tag({ One: Data.string(), Two: Data.nil() });
 
   assertEquals(type.make({ One: "hey" }), { One: "hey" });
   assertEquals(type.make({ Two: null }), { Two: null });
@@ -405,17 +406,17 @@ Deno.test("Data.tag({ One: string(), Two: nil() }).make()", () => {
   type.make({ Two: "hey" });
 });
 
-Deno.test("Data.tag({ One: string(), Two: nil() }).guard()", () => {
-  const type = Data.tag({ One: Data.string(), Two: Data.null() });
+Deno.test("Data.tag({ One: string(), Two: nil() }).is()", () => {
+  const type = Data.tag({ One: Data.string(), Two: Data.nil() });
 
-  assertEquals(type.guard({ One: "hey" }), true);
-  assertEquals(type.guard({ Two: null }), true);
-  assertEquals(type.guard("hey"), false);
-  assertEquals(type.guard(null), false);
-  assertEquals(type.guard([]), false);
-  assertEquals(type.guard({ foo: 123 }), false);
-  assertEquals(type.guard({ One: null }), false);
-  assertEquals(type.guard({ Two: "hey" }), false);
+  assertEquals(type.is({ One: "hey" }), true);
+  assertEquals(type.is({ Two: null }), true);
+  assertEquals(type.is("hey"), false);
+  assertEquals(type.is(null), false);
+  assertEquals(type.is([]), false);
+  assertEquals(type.is({ foo: 123 }), false);
+  assertEquals(type.is({ One: null }), false);
+  assertEquals(type.is({ Two: "hey" }), false);
 });
 
 /** Combos */

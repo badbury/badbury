@@ -1,10 +1,11 @@
-import { Constructor, unknown } from "./constructors.ts";
+import { unknown } from "./unknown.ts";
+import { Constructor } from "./_shared.ts";
 
-interface CompleteMatch<Return> {
+export interface CompleteMatch<Return> {
   run(): Return;
 }
 
-interface IncompleteMatch<Subject, Return> {
+export interface IncompleteMatch<Subject, Return> {
   with<Handle extends Subject, NewReturn>(
     target: Constructor<Handle>,
     handler: (value: Handle) => NewReturn,
@@ -15,9 +16,9 @@ interface IncompleteMatch<Subject, Return> {
   ): CompleteMatch<Return | NewReturn>;
 }
 
-type WithReturn<Subject, Handle, Return> = Exclude<Subject, Handle> extends
-  never ? CompleteMatch<Return>
-  : IncompleteMatch<Exclude<Subject, Handle>, Return>;
+export type WithReturn<Subject, Handle, Return> =
+  Exclude<Subject, Handle> extends never ? CompleteMatch<Return>
+    : IncompleteMatch<Exclude<Subject, Handle>, Return>;
 
 type MatchMap<Subject, Return> = Map<
   Constructor<Subject>,
@@ -54,7 +55,7 @@ class MatchBuilder<Subject, Return>
 
   run() {
     for (const [constructor, handler] of this.map.entries()) {
-      if (constructor.guard(this.value)) {
+      if (constructor.is(this.value)) {
         return handler(this.value);
       }
     }
