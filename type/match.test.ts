@@ -1,19 +1,19 @@
-import { array, boolean, number, record, string, union } from "./mod.ts";
+import { array, boolean, number, object, string, union } from "./mod.ts";
 import { match } from "./match.ts";
 import { assertEquals } from "https://deno.land/std@0.198.0/assert/assert_equals.ts";
 
-Deno.test("match(union([RecordOne, RecordTwo]))", () => {
-  class RecordOne extends record({
+Deno.test("match(union([ObjectOne, ObjectTwo]))", () => {
+  class ObjectOne extends object({
     propOne: string(),
   }) {}
-  class RecordTwo extends record({
+  class ObjectTwo extends object({
     propTwo: number(),
   }) {}
-  const RecordThree = record({
+  const ObjectThree = object({
     propThree: array(string()),
   });
   const Bool = boolean();
-  const type = union([RecordOne, RecordTwo, RecordThree, Bool]);
+  const type = union([ObjectOne, ObjectTwo, ObjectThree, Bool]);
   const instanceOne = type.make({ propOne: "hi" });
   const instanceTwo = type.make({ propTwo: 1234 });
   const instanceThree = type.make({ propThree: ["a", "b", "c"] });
@@ -21,15 +21,15 @@ Deno.test("match(union([RecordOne, RecordTwo]))", () => {
 
   function getString(
     instance:
-      | RecordOne
-      | RecordTwo
-      | ReturnType<typeof RecordThree["make"]>
+      | ObjectOne
+      | ObjectTwo
+      | ReturnType<typeof ObjectThree["make"]>
       | ReturnType<typeof Bool["make"]>,
   ) {
     return match(instance)
-      .with(RecordOne, (value) => value.propOne)
-      .with(RecordTwo, (value) => String(value.propTwo))
-      .with(RecordThree, (value) => value.propThree.join(","))
+      .with(ObjectOne, (value) => value.propOne)
+      .with(ObjectTwo, (value) => String(value.propTwo))
+      .with(ObjectThree, (value) => value.propThree.join(","))
       .with(Bool, (value) => (value ? "true" : "false"))
       .run();
   }
@@ -46,17 +46,17 @@ Deno.test("match(union([RecordOne, RecordTwo]))", () => {
 });
 
 Deno.test("match with default", () => {
-  class RecordOne extends record({
+  class ObjectOne extends object({
     propOne: string(),
   }) {}
-  class RecordTwo extends record({
+  class ObjectTwo extends object({
     propTwo: number(),
   }) {}
-  const RecordThree = record({
+  const ObjectThree = object({
     propThree: array(string()),
   });
   const Bool = boolean();
-  const type = union([RecordOne, RecordTwo, RecordThree, Bool]);
+  const type = union([ObjectOne, ObjectTwo, ObjectThree, Bool]);
   const instanceOne = type.make({ propOne: "hi" });
   const instanceTwo = type.make({ propTwo: 1234 });
   const instanceThree = type.make({ propThree: ["a", "b", "c"] });
@@ -64,14 +64,14 @@ Deno.test("match with default", () => {
 
   const getString = (
     instance:
-      | RecordOne
-      | RecordTwo
-      | ReturnType<typeof RecordThree["make"]>
+      | ObjectOne
+      | ObjectTwo
+      | ReturnType<typeof ObjectThree["make"]>
       | ReturnType<typeof Bool["make"]>,
   ) =>
     match(instance)
-      .with(RecordOne, (value) => value.propOne)
-      .with(RecordTwo, (value) => String(value.propTwo))
+      .with(ObjectOne, (value) => value.propOne)
+      .with(ObjectTwo, (value) => String(value.propTwo))
       .default((value) => JSON.stringify(value))
       .run();
 
@@ -92,7 +92,7 @@ Deno.test("match with default", () => {
 // Deno.test("match with tag", () => {
 //   const MyTag = Data.tag({
 //     One: Data.string(),
-//     Two: Data.record({ foo: Data.number() }),
+//     Two: Data.object({ foo: Data.number() }),
 //   });
 
 //   const greeting = match({ "One": "234" })

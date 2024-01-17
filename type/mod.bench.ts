@@ -6,7 +6,7 @@ import {
   literal,
   nil,
   number,
-  record,
+  object,
   string,
   tuple,
   union,
@@ -31,7 +31,7 @@ const testData = {
   },
 } as unknown;
 
-class BadburyType extends record({
+class BadburyType extends object({
   string: string(),
   number: number(),
   unknown: unknown(),
@@ -42,14 +42,14 @@ class BadburyType extends record({
   tuple: tuple([boolean(), string()]),
   array: array(string()),
   union: union([
-    record({ prop1: string() }),
-    record({ prop2: number() }),
+    object({ prop1: string() }),
+    object({ prop2: number() }),
     boolean(),
   ]),
   arrayOfUnion: array(union([string(), boolean()])),
-  object: record({
+  object: object({
     prop: string(),
-    nestedObject: record({
+    nestedObject: object({
       nestedProp: number(),
     }),
   }),

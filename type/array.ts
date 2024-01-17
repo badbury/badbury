@@ -10,7 +10,7 @@ export interface ArrayConstructor<
 export const array = <D extends Constructor, T extends ConstructorToType<D>>(
   definitions: D,
 ): ArrayConstructor<D, T> => {
-  return class StrictArray {
+  return class BadburyArray {
     static definitions = definitions;
     declare static foo: string;
     static make(values: T[]) {

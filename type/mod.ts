@@ -4,7 +4,7 @@ export * from "./enums.ts";
 export * from "./literal.ts";
 export * from "./nil.ts";
 export * from "./number.ts";
-export * from "./record.ts";
+export * from "./object.ts";
 export * from "./string.ts";
 export * from "./tag.ts";
 export * from "./tuple.ts";

@@ -1,26 +1,22 @@
-import {
-  Constructor,
-  ObjectOfConstructorsToTypes,
-  parse,
-} from "./_shared.ts";
+import { Constructor, ObjectOfConstructorsToTypes, parse } from "./_shared.ts";
 
-export interface RecordConstructor<
+export interface ObjectConstructor<
   T extends ObjectOfConstructorsToTypes<D>,
   D extends Record<string, Constructor>,
 > extends Constructor<T> {
-  name: "Record";
+  name: "Object";
   definitions: D;
   new (values: T): T;
   prototype: T;
 }
-export const record = <
+export const object = <
   T extends ObjectOfConstructorsToTypes<D>,
   D extends Record<string, Constructor>,
 >(
   definitions: D = {} as D,
-): RecordConstructor<T, D> => {
+): ObjectConstructor<T, D> => {
   const properties = Object.keys(definitions) as (keyof T)[];
-  return class Record {
+  return class BadburyObject {
     static definitions = definitions;
     constructor(values: T) {
       for (const key of properties) {
@@ -47,7 +43,7 @@ export const record = <
       return true;
     }
     static parse(value: unknown): T {
-      return parse(value, this as RecordConstructor<T, D>);
+      return parse(value, this as ObjectConstructor<T, D>);
     }
-  } as RecordConstructor<T, D>;
+  } as ObjectConstructor<T, D>;
 };
